@@ -1,0 +1,38 @@
+# Dipendenze
+node_modules/
+venv/
+
+# Frontend build
+frontend/dist/
+
+# Dati utente (privati, non versionati)
+backend/data/notes.json
+backend/data/archivio-analisi.json
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# Credenziali e segreti
+backend/.env
+backend/key.pem
+backend/cert.pem
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Log
+*.log
+nohup.out
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Claude Code
+.claude/
