@@ -8,10 +8,16 @@
           {{ pulisciLoading ? "⏳ Pulizia in corso..." : "✨ Sistema note" }}
         </button>
 
+        <!-- SELEZIONE NOTE -->
+        <div v-if="selectedIds.size > 0" class="sel-badge">
+          {{ selectedIds.size }} selezionat{{ selectedIds.size === 1 ? 'a' : 'e' }}
+          <button class="sel-clear" @click="selectedIds.clear(); selectedIds = new Set(selectedIds)">✕</button>
+        </div>
+
         <!-- SPLIT BUTTON ANALISI -->
         <div class="analisi-split" v-click-outside="() => analisiMenuOpen = false">
           <button class="btn-analisi" :disabled="analisiLoading || pulisciLoading" @click="avviaAnalisi('tutto')">
-            {{ analisiLoading ? "⏳ Analisi..." : "🧠 Analizza" }}
+            {{ analisiLoading ? "⏳ Analisi..." : selectedIds.size > 0 ? `🧠 Analizza (${selectedIds.size})` : "🧠 Analizza" }}
           </button>
           <button class="btn-analisi-arrow" :disabled="analisiLoading || pulisciLoading" @click.stop="analisiMenuOpen = !analisiMenuOpen">▾</button>
           <div v-if="analisiMenuOpen" class="analisi-dropdown">
@@ -132,6 +138,9 @@
       <table v-else class="table">
         <thead>
           <tr>
+            <th style="width:36px">
+              <input type="checkbox" class="cb" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll" />
+            </th>
             <th style="width:150px">Data</th>
             <th style="width:180px">Audio</th>
             <th style="width:110px">Stato</th>
@@ -140,7 +149,10 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="nota in filtered" :key="nota.id" :class="{ pending: nota.status === 'in_elaborazione' }">
+          <tr v-for="nota in filtered" :key="nota.id" :class="{ pending: nota.status === 'in_elaborazione', selected: selectedIds.has(nota.id) }">
+            <td class="cell-cb">
+              <input type="checkbox" class="cb" :checked="selectedIds.has(nota.id)" @change="toggleSelect(nota.id)" />
+            </td>
             <td class="cell-date">{{ formatDate(nota.createdAt) }}</td>
             <td class="cell-audio">
               <audio v-if="nota.filename" :src="`/audio/${nota.filename}`" controls />
@@ -257,6 +269,22 @@
       <div v-else class="archivio-list">
         <div v-for="entry in archivio" :key="entry.id" class="arch-row">
           <div class="arch-meta">
+            <div class="arch-title-row">
+              <template v-if="editingTitoloId === entry.id">
+                <input
+                  class="arch-title-input"
+                  v-model="editingTitoloVal"
+                  @keydown.enter="salvaTitolo(entry)"
+                  @keydown.escape="editingTitoloId = null"
+                  @blur="salvaTitolo(entry)"
+                  autofocus
+                />
+              </template>
+              <template v-else>
+                <span class="arch-title" @click="avviaTitoloEdit(entry)">{{ entry.titolo || formatDate(entry.generatoIl) }}</span>
+                <button class="btn-edit-title" @click="avviaTitoloEdit(entry)">✏️</button>
+              </template>
+            </div>
             <div class="arch-date">{{ formatDate(entry.generatoIl) }}</div>
             <div class="arch-tipi">
               <span v-for="t in (entry.tipi || [])" :key="t" class="arch-chip">{{ tipoLabel(t) }}</span>
@@ -332,6 +360,9 @@ const pulisciLoading = ref(false);
 const analisiMenuOpen = ref(false);
 const archivio = ref([]);
 const archivioLoading = ref(false);
+const selectedIds = ref(new Set());
+const editingTitoloId = ref(null);
+const editingTitoloVal = ref("");
 
 // chat
 const chatInput = ref("");
@@ -406,6 +437,24 @@ watch(chatMessages, () => {
 }, { deep: true });
 
 let pollInterval = null;
+
+const completate = computed(() => filtered.value.filter((n) => n.status === "completata"));
+const allSelected = computed(() => completate.value.length > 0 && completate.value.every((n) => selectedIds.value.has(n.id)));
+const someSelected = computed(() => completate.value.some((n) => selectedIds.value.has(n.id)) && !allSelected.value);
+
+function toggleSelect(id) {
+  const s = new Set(selectedIds.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  selectedIds.value = s;
+}
+
+function toggleAll() {
+  if (allSelected.value) {
+    selectedIds.value = new Set();
+  } else {
+    selectedIds.value = new Set(completate.value.map((n) => n.id));
+  }
+}
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase();
@@ -483,10 +532,11 @@ async function avviaAnalisi(tipo = "tutto") {
   analisiLogs.value = [];
   analisiStreaming.value = "";
   try {
+    const noteIds = selectedIds.value.size > 0 ? [...selectedIds.value] : null;
     const res = await fetch("/api/analisi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo }),
+      body: JSON.stringify({ tipo, noteIds }),
     });
     const { jobId } = await res.json();
     await pollJob(
@@ -585,6 +635,24 @@ async function caricaArchivio() {
   }
 }
 
+function avviaTitoloEdit(entry) {
+  editingTitoloId.value = entry.id;
+  editingTitoloVal.value = entry.titolo || "";
+}
+
+async function salvaTitolo(entry) {
+  if (!editingTitoloId.value) return;
+  const titolo = editingTitoloVal.value.trim() || entry.titolo;
+  await fetch(`/api/archivio/${entry.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ titolo }),
+  });
+  const idx = archivio.value.findIndex((e) => e.id === entry.id);
+  if (idx !== -1) archivio.value[idx] = { ...archivio.value[idx], titolo };
+  editingTitoloId.value = null;
+}
+
 function visualizzaArchivio(entry) {
   analisi.value = entry;
   activeTab.value = "note";
@@ -629,6 +697,14 @@ onUnmounted(() => clearInterval(pollInterval));
 .analisi-dropdown button + button { border-top: 1px solid #f2f2f7; }
 
 .btn-refresh { padding: 8px 12px; border: 1px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 16px; cursor: pointer; }
+
+/* SELEZIONE */
+.sel-badge { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #e8f0ff; color: #5856d6; border-radius: 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.sel-clear { background: none; border: none; cursor: pointer; color: #5856d6; font-size: 14px; padding: 0; line-height: 1; }
+.cb { width: 16px; height: 16px; cursor: pointer; accent-color: #5856d6; }
+.cell-cb { width: 36px; text-align: center; padding: 14px 8px; }
+tbody tr.selected { background: #f0efff; }
+tbody tr.selected:hover { background: #e8e7ff; }
 
 /* TAB BAR */
 .tab-bar { display: flex; gap: 4px; padding: 8px 24px 0; background: #fff; border-bottom: 1px solid #e5e5ea; }
@@ -763,7 +839,13 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .archivio-list { display: flex; flex-direction: column; gap: 10px; }
 .arch-row { background: #fff; border-radius: 14px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .arch-meta { flex-shrink: 0; width: 200px; }
-.arch-date { font-size: 13px; font-weight: 600; color: #1d1d1f; margin-bottom: 6px; }
+.arch-title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.arch-title { font-size: 14px; font-weight: 700; color: #1d1d1f; cursor: pointer; }
+.arch-title:hover { color: #5856d6; }
+.arch-title-input { font-size: 14px; font-weight: 700; border: 1.5px solid #5856d6; border-radius: 6px; padding: 2px 8px; outline: none; width: 100%; }
+.btn-edit-title { background: none; border: none; font-size: 12px; cursor: pointer; opacity: 0; padding: 0; }
+.arch-row:hover .btn-edit-title { opacity: 1; }
+.arch-date { font-size: 12px; color: #8e8e93; margin-bottom: 4px; }
 .arch-tipi { display: flex; flex-wrap: wrap; gap: 4px; }
 .arch-chip { background: #f0efff; color: #5856d6; border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
 .arch-preview { flex: 1; }

@@ -171,8 +171,12 @@ async function pulisciNote(notes, onLog, onStream) {
 }
 
 // tipo: "tutto" | "eventi" | "riassunto" | "suggerimenti" | "connessioni"
-async function analizzaTipo(notes, tipo, onLog, onStream) {
-  const da_analizzare = notes.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo));
+// noteIds: array di id da analizzare, null = tutte
+async function analizzaTipo(notes, tipo, onLog, onStream, noteIds = null) {
+  const da_analizzare = notes.filter((n) => {
+    if (n.status !== "completata" || !(n.testo_pulito || n.testo)) return false;
+    return noteIds && noteIds.length > 0 ? noteIds.includes(n.id) : true;
+  });
   if (!da_analizzare.length) throw new Error("Nessuna nota disponibile per l'analisi");
   const startTime = Date.now();
   const contesto = costruisciContesto(da_analizzare);

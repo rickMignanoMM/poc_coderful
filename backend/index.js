@@ -45,9 +45,17 @@ function leggiArchivio() {
 function salvaArchivio(entries) {
   fs.writeFileSync(ARCHIVIO_FILE, JSON.stringify(entries, null, 2));
 }
+function generaTitolo(risultato) {
+  const data = new Date(risultato.generatoIl).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  if (risultato.riassunto?.contesto) return `${risultato.riassunto.contesto} — ${data}`;
+  if (risultato.riassunto?.argomenti?.[0]) return `${risultato.riassunto.argomenti[0]} — ${data}`;
+  const tipi = (risultato.tipi || []).join(", ");
+  return `Analisi ${tipi} — ${data}`;
+}
+
 function aggiungiArchivio(risultato) {
   const entries = leggiArchivio();
-  entries.unshift({ id: Date.now().toString(), ...risultato });
+  entries.unshift({ id: Date.now().toString(), titolo: generaTitolo(risultato), ...risultato });
   salvaArchivio(entries);
 }
 
@@ -140,10 +148,11 @@ app.post("/api/pulisci", (req, res) => {
 
 app.post("/api/analisi", (req, res) => {
   const tipo = req.body?.tipo || "tutto";
+  const noteIds = req.body?.noteIds || null;
   const jobId = creaJob();
   res.json({ jobId });
 
-  analizzaTipo(leggiNote(), tipo, (line) => aggiungiLog(jobId, line), (text) => aggiornaStreaming(jobId, text))
+  analizzaTipo(leggiNote(), tipo, (line) => aggiungiLog(jobId, line), (text) => aggiornaStreaming(jobId, text), noteIds)
     .then((risultato) => {
       aggiungiArchivio(risultato);
       aggiornaJob(jobId, "completato", risultato);
@@ -153,6 +162,15 @@ app.post("/api/analisi", (req, res) => {
 
 app.get("/api/archivio", (req, res) => {
   res.json(leggiArchivio());
+});
+
+app.patch("/api/archivio/:id", (req, res) => {
+  const { titolo } = req.body;
+  const aggiornate = leggiArchivio().map((e) =>
+    e.id === req.params.id ? { ...e, titolo } : e
+  );
+  salvaArchivio(aggiornate);
+  res.json({ ok: true });
 });
 
 app.delete("/api/archivio/:id", (req, res) => {
