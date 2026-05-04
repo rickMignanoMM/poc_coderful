@@ -10,6 +10,7 @@
     </nav>
     <RecordView v-if="view === 'record'" @uploaded="switchToNotes" />
     <NotesView v-else />
+    <DeviceBadge />
   </div>
 </template>
 
@@ -17,6 +18,7 @@
 import { ref } from "vue";
 import RecordView from "./views/RecordView.vue";
 import NotesView from "./views/NotesView.vue";
+import DeviceBadge from "./components/DeviceBadge.vue";
 
 const view = ref("record");
 
