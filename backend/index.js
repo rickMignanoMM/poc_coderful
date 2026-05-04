@@ -83,6 +83,13 @@ function saveNotes(notes) {
   fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
 }
 
+app.get("/api/config", (req, res) => {
+  res.json({
+    deviceName: process.env.DEVICE_NAME || "Dispositivo",
+    deviceSubtitle: process.env.DEVICE_SUBTITLE || "",
+  });
+});
+
 app.get("/api/notes", (req, res) => {
   res.json(readNotes());
 });

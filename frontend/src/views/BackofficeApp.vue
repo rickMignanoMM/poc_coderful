@@ -466,6 +466,17 @@
       </div>
     </div>
   </teleport>
+
+  <!-- Device badge -->
+  <teleport to="body">
+    <div v-if="deviceName" class="device-badge" :class="deviceClass">
+      <span class="device-dot"></span>
+      <div class="device-info">
+        <span class="device-name">{{ deviceName }}</span>
+        <span v-if="deviceSubtitle" class="device-subtitle">{{ deviceSubtitle }}</span>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <script setup>
@@ -1018,7 +1029,25 @@ async function addTextNote() {
   await loadNotes();
 }
 
-onMounted(() => loadNotes());
+const deviceName = ref("");
+const deviceSubtitle = ref("");
+const deviceClass = computed(() => {
+  const name = deviceName.value.toLowerCase();
+  if (name.includes("jetson")) return "device-jetson";
+  if (name.includes("tuxedo") || name.includes("intel")) return "device-tuxedo";
+  return "device-default";
+});
+
+async function loadDeviceConfig() {
+  try {
+    const res = await fetch("/api/config");
+    const config = await res.json();
+    deviceName.value = config.deviceName || "";
+    deviceSubtitle.value = config.deviceSubtitle || "";
+  } catch {}
+}
+
+onMounted(() => { loadNotes(); loadDeviceConfig(); });
 onUnmounted(() => clearInterval(pollInterval));
 </script>
 
@@ -1341,4 +1370,15 @@ tr:hover .btn-edit { opacity: 1; }
   .tab-btn { padding: 8px 8px; font-size: 12px; }
   .sel-badge { font-size: 12px; padding: 6px 8px; }
 }
+
+/* DEVICE BADGE */
+.device-badge { position: fixed; bottom: 20px; left: 20px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; backdrop-filter: blur(12px); z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); }
+.device-tuxedo { background: rgba(88, 86, 214, 0.92); color: #fff; }
+.device-jetson  { background: rgba(52, 199, 89, 0.92); color: #fff; }
+.device-default { background: rgba(30, 30, 30, 0.88); color: #fff; }
+.device-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.9); animation: pulse-dot 2s infinite; flex-shrink: 0; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+.device-info { display: flex; flex-direction: column; gap: 1px; }
+.device-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+.device-subtitle { font-size: 10px; opacity: 0.8; line-height: 1.2; }
 </style>
