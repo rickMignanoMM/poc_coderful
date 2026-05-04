@@ -272,7 +272,10 @@ const server = https.createServer(
 );
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server HTTPS su https://172.16.31.208:${PORT}`);
+  const { networkInterfaces } = require("os");
+  const ip = Object.values(networkInterfaces()).flat()
+    .find((i) => i.family === "IPv4" && !i.internal)?.address ?? "localhost";
+  console.log(`Server HTTPS su https://${ip}:${PORT}`);
 });
 
 const http = require("http");

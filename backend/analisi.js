@@ -1,4 +1,5 @@
-const LLAMA_BASE = "http://127.0.0.1:8080";
+const LLAMA_BASE = "http://127.0.0.1:11434";
+const OLLAMA_MODEL = "qwen3:14b";
 
 const PROMPT_PULIZIA = `Sei un correttore di trascrizioni audio in italiano.
 Il testo potrebbe contenere parole storpiate, frasi incomplete, ripetizioni o errori di trascrizione automatica.
@@ -79,14 +80,20 @@ function emitLog(msg, startTime, onLog) {
 }
 
 async function llamaChat(messages, onStream) {
-  const res = await fetch(`${LLAMA_BASE}/v1/chat/completions`, {
+  const res = await fetch(`${LLAMA_BASE}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, stream: true, max_tokens: 1024 }),
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      think: false,
+      messages,
+      stream: true,
+      options: { num_predict: 1024 },
+    }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`llama-server HTTP ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Ollama HTTP ${res.status}: ${body.slice(0, 200)}`);
   }
 
   let fullContent = "";
@@ -103,17 +110,18 @@ async function llamaChat(messages, onStream) {
     const lines = buf.split("\n");
     buf = lines.pop();
     for (const line of lines) {
-      if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
+      if (!line.trim()) continue;
       try {
-        const chunk = JSON.parse(line.slice(6));
-        const delta = chunk.choices?.[0]?.delta?.content;
+        const chunk = JSON.parse(line);
+        const delta = chunk.message?.content;
         if (delta) {
           fullContent += delta;
           if (onStream) onStream(fullContent);
         }
-        if (chunk.timings?.predicted_per_second) {
-          tokPerSec = chunk.timings.predicted_per_second;
-          evalCount = chunk.usage?.completion_tokens ?? 0;
+        if (chunk.done) {
+          evalCount = chunk.eval_count ?? 0;
+          const ns = chunk.eval_duration ?? 0;
+          tokPerSec = ns > 0 ? (evalCount / (ns / 1e9)) : 0;
         }
       } catch {}
     }
@@ -123,7 +131,8 @@ async function llamaChat(messages, onStream) {
 }
 
 function extractJson(text) {
-  const match = text.match(/\{[\s\S]*\}/);
+  const clean = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const match = clean.match(/\{[\s\S]*\}/);
   if (match) {
     try { return JSON.parse(match[0]); } catch {}
   }
