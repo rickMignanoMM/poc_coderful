@@ -84,9 +84,12 @@ function saveNotes(notes) {
 }
 
 app.get("/api/config", (req, res) => {
+  let specs = null;
+  try { specs = JSON.parse(process.env.DEVICE_SPECS || "null"); } catch {}
   res.json({
     deviceName: process.env.DEVICE_NAME || "Dispositivo",
     deviceSubtitle: process.env.DEVICE_SUBTITLE || "",
+    deviceSpecs: specs,
   });
 });
 

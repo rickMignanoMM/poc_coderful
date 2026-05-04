@@ -469,11 +469,39 @@
 
   <!-- Device badge -->
   <teleport to="body">
-    <div v-if="deviceName" class="device-badge" :class="deviceClass">
+    <div v-if="deviceName" class="device-badge" :class="deviceClass" @click="deviceModalOpen = true" title="Clicca per i dettagli">
       <span class="device-dot"></span>
       <div class="device-info">
         <span class="device-name">{{ deviceName }}</span>
         <span v-if="deviceSubtitle" class="device-subtitle">{{ deviceSubtitle }}</span>
+      </div>
+    </div>
+  </teleport>
+
+  <!-- Device specs modal -->
+  <teleport to="body">
+    <div v-if="deviceModalOpen" class="modal-overlay" @click.self="deviceModalOpen = false">
+      <div class="modal-box device-modal-box">
+        <div class="device-modal-header" :class="deviceClass">
+          <span class="device-dot device-dot-lg"></span>
+          <div>
+            <div class="device-modal-title">{{ deviceName }}</div>
+            <div class="device-modal-sub">{{ deviceSubtitle }}</div>
+          </div>
+          <button class="device-modal-close" @click="deviceModalOpen = false">✕</button>
+        </div>
+        <div v-if="deviceSpecs" class="device-modal-body">
+          <div v-for="(section, sectionKey) in deviceSpecs" :key="sectionKey" class="device-spec-section">
+            <div class="device-spec-section-title">{{ sectionKey }}</div>
+            <div class="device-spec-grid">
+              <template v-for="(val, key) in section" :key="key">
+                <span class="spec-key">{{ key }}</span>
+                <span class="spec-val">{{ val }}</span>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div v-else class="device-modal-empty">Nessuna specifica configurata.</div>
       </div>
     </div>
   </teleport>
@@ -1031,6 +1059,8 @@ async function addTextNote() {
 
 const deviceName = ref("");
 const deviceSubtitle = ref("");
+const deviceSpecs = ref(null);
+const deviceModalOpen = ref(false);
 const deviceClass = computed(() => {
   const name = deviceName.value.toLowerCase();
   if (name.includes("jetson")) return "device-jetson";
@@ -1044,6 +1074,7 @@ async function loadDeviceConfig() {
     const config = await res.json();
     deviceName.value = config.deviceName || "";
     deviceSubtitle.value = config.deviceSubtitle || "";
+    deviceSpecs.value = config.deviceSpecs || null;
   } catch {}
 }
 
@@ -1370,6 +1401,21 @@ tr:hover .btn-edit { opacity: 1; }
   .tab-btn { padding: 8px 8px; font-size: 12px; }
   .sel-badge { font-size: 12px; padding: 6px 8px; }
 }
+
+/* DEVICE MODAL */
+.device-modal-box { max-width: 480px; padding: 0; overflow: hidden; }
+.device-modal-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; color: #fff; position: relative; }
+.device-modal-title { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.device-modal-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.device-modal-close { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.device-modal-close:hover { background: rgba(255,255,255,0.35); }
+.device-dot-lg { width: 12px; height: 12px; flex-shrink: 0; }
+.device-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+.device-modal-empty { padding: 24px; color: #8e8e93; font-size: 14px; text-align: center; }
+.device-spec-section-title { font-size: 11px; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+.device-spec-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+.spec-key { font-size: 13px; color: #8e8e93; white-space: nowrap; }
+.spec-val { font-size: 13px; color: #1d1d1f; font-weight: 600; }
 
 /* DEVICE BADGE */
 .device-badge { position: fixed; bottom: 20px; left: 20px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; backdrop-filter: blur(12px); z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); }
