@@ -30,6 +30,9 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from "vue";
+import { useApi } from "../composables/useApi.js";
+
+const { apiFetch } = useApi();
 
 const emit = defineEmits(["uploaded"]);
 
@@ -99,7 +102,7 @@ async function invia() {
   const form = new FormData();
   form.append("audio", blob.value, `nota-${Date.now()}.${ext}`);
   try {
-    const res = await fetch("/api/audio", { method: "POST", body: form });
+    const res = await apiFetch("/api/audio", { method: "POST", body: form });
     if (!res.ok) throw new Error();
     mostraMessaggio("Nota inviata! Trascrizione in corso...", "success");
     scarta();

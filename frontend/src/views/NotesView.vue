@@ -20,7 +20,7 @@
           <button class="delete-btn" @click="elimina(nota.id)">✕</button>
         </div>
 
-        <audio v-if="nota.filename" :src="`/audio/${nota.filename}`" controls />
+        <audio v-if="nota.filename" :src="mediaUrl(`/audio/${nota.filename}`)" controls />
 
         <p v-if="nota.testo" class="note-text">{{ nota.testo }}</p>
         <p v-else-if="nota.status === 'in_elaborazione'" class="note-text placeholder">
@@ -33,6 +33,9 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
+import { useApi } from "../composables/useApi.js";
+
+const { apiFetch, mediaUrl } = useApi();
 
 const notes = ref([]);
 const loading = ref(true);
@@ -41,7 +44,7 @@ let pollInterval = null;
 async function carica(mostraLoading = true) {
   if (mostraLoading) loading.value = true;
   try {
-    const res = await fetch("/api/notes");
+    const res = await apiFetch("/api/notes");
     notes.value = await res.json();
   } finally {
     if (mostraLoading) loading.value = false;
@@ -64,7 +67,7 @@ function formatDate(iso) {
 }
 
 async function elimina(id) {
-  await fetch(`/api/notes/${id}`, { method: "DELETE" });
+  await apiFetch(`/api/notes/${id}`, { method: "DELETE" });
   notes.value = notes.value.filter((n) => n.id !== id);
 }
 

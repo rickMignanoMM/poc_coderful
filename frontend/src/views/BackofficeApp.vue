@@ -257,7 +257,7 @@
                   <button class="btn-delete" @click="deleteNote(nota.id)">✕</button>
                 </div>
                 <div v-if="nota.filename" class="card-audio">
-                  <audio :src="`/audio/${nota.filename}`" controls />
+                  <audio :src="mediaUrl(`/audio/${nota.filename}`)" controls />
                 </div>
                 <div class="card-text">
                   <template v-if="editingId === nota.id">
@@ -473,6 +473,9 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import DeviceBadge from "../components/DeviceBadge.vue";
+import { useApi } from "../composables/useApi.js";
+
+const { apiFetch, mediaUrl } = useApi();
 
 const confirmModal = ref({ visible: false, message: "", onConfirm: () => {} });
 function showConfirmModal(message, onConfirm) {
@@ -667,7 +670,7 @@ function formatTime(iso) {
 async function loadNotes(showLoading = true) {
   if (showLoading) loading.value = true;
   try {
-    const res = await fetch("/api/notes");
+    const res = await apiFetch("/api/notes");
     notes.value = await res.json();
   } finally {
     if (showLoading) loading.value = false;
@@ -681,7 +684,7 @@ async function pollJob(jobId, onDone, onError, onLogs, onStream) {
   return new Promise((resolve) => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/job/${jobId}`);
+        const res = await apiFetch(`/api/job/${jobId}`);
         const job = await res.json();
         if (onLogs && job.logs) onLogs(job.logs);
         if (onStream && job.streaming !== undefined) onStream(job.streaming);
@@ -708,7 +711,7 @@ async function startCleanup() {
   analysisError.value = null;
   analysisStreaming.value = "";
   try {
-    const res = await fetch("/api/pulisci", { method: "POST" });
+    const res = await apiFetch("/api/pulisci", { method: "POST" });
     const { jobId } = await res.json();
     await pollJob(
       jobId,
@@ -734,7 +737,7 @@ async function startAnalysis(type = "tutto") {
   analysisStreaming.value = "";
   try {
     const noteIds = selectedIds.value.size > 0 ? [...selectedIds.value] : null;
-    const res = await fetch("/api/analisi", {
+    const res = await apiFetch("/api/analisi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tipo: type, noteIds }),
@@ -774,7 +777,7 @@ function cancelEdit() {
 
 async function saveEdit(nota) {
   const field = nota.testo_pulito !== undefined ? "testo_pulito" : "testo";
-  await fetch(`/api/notes/${nota.id}`, {
+  await apiFetch(`/api/notes/${nota.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ [field]: editingText.value }),
@@ -786,7 +789,7 @@ async function saveEdit(nota) {
 
 function deleteNote(id) {
   showConfirmModal("Vuoi eliminare questa nota? L'operazione non può essere annullata.", async () => {
-    await fetch(`/api/notes/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/notes/${id}`, { method: "DELETE" });
     notes.value = notes.value.filter((n) => n.id !== id);
   });
 }
@@ -799,7 +802,7 @@ function applyPatch(patch) {
   if (patch.sezione === "connessioni")  analysis.value.connessioni  = patch.data;
   const archiveId = analysis.value.archiveId || analysis.value.id;
   if (archiveId) {
-    fetch(`/api/archivio/${archiveId}`, {
+    apiFetch(`/api/archivio/${archiveId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [patch.sezione]: patch.data }),
@@ -824,7 +827,7 @@ async function sendMessage() {
     const body = useRecap
       ? { question, history: chatHistory.value, analysis: analysisContext }
       : { question, history: chatHistory.value };
-    const res = await fetch(endpoint, {
+    const res = await apiFetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -858,7 +861,7 @@ function typeLabel(t) { return TYPE_LABEL[t] || t; }
 async function loadArchive() {
   archiveLoading.value = true;
   try {
-    const res = await fetch("/api/archivio");
+    const res = await apiFetch("/api/archivio");
     archive.value = await res.json();
   } finally {
     archiveLoading.value = false;
@@ -873,7 +876,7 @@ function startTitleEdit(entry) {
 async function saveTitle(entry) {
   if (!editingTitleId.value) return;
   const titolo = editingTitleVal.value.trim() || entry.titolo;
-  await fetch(`/api/archivio/${entry.id}`, {
+  await apiFetch(`/api/archivio/${entry.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ titolo }),
@@ -890,7 +893,7 @@ function viewArchiveEntry(entry) {
 
 function deleteArchiveEntry(id) {
   showConfirmModal("Vuoi eliminare questo recap dall'archivio? L'operazione non può essere annullata.", async () => {
-    await fetch(`/api/archivio/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/archivio/${id}`, { method: "DELETE" });
     archive.value = archive.value.filter((e) => e.id !== id);
   });
 }
@@ -907,7 +910,7 @@ function getArchiveId() {
 async function patchAnalysisArchive(fields) {
   const id = getArchiveId();
   if (!id) return;
-  await fetch(`/api/archivio/${id}`, {
+  await apiFetch(`/api/archivio/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(fields),
@@ -1011,7 +1014,7 @@ function buildCalendarUrl(ev) {
 
 async function addTextNote() {
   if (!textInput.value.trim()) return;
-  await fetch("/api/notes/testo", {
+  await apiFetch("/api/notes/testo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ testo: textInput.value.trim() }),

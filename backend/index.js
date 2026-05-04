@@ -85,11 +85,14 @@ function saveNotes(notes) {
 
 app.get("/api/config", (req, res) => {
   let specs = null;
+  let peers = [];
   try { specs = JSON.parse(process.env.DEVICE_SPECS || "null"); } catch {}
+  try { peers = JSON.parse(process.env.PEERS || "[]"); } catch {}
   res.json({
     deviceName: process.env.DEVICE_NAME || "Dispositivo",
     deviceSubtitle: process.env.DEVICE_SUBTITLE || "",
     deviceSpecs: specs,
+    peers,
   });
 });
 
