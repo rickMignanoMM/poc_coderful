@@ -6,23 +6,23 @@ const { spawn } = require("child_process");
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
-const { analizzaTipo, pulisciNote, chatConNote } = require("./analisi");
+const { analyzeType, cleanNotes, chatWithNotes, chatWithRecap } = require("./analisi");
 
-// job store in memoria
+// in-memory job store
 const jobs = {};
-function creaJob() {
+function createJob() {
   const id = Date.now().toString();
-  jobs[id] = { status: "in_corso", risultato: null, errore: null, logs: [], streaming: "" };
+  jobs[id] = { status: "pending", result: null, error: null, logs: [], streaming: "" };
   return id;
 }
-function aggiungiLog(id, line) {
+function addLog(id, line) {
   if (jobs[id]) jobs[id].logs.push(line);
 }
-function aggiornaStreaming(id, text) {
+function updateStreaming(id, text) {
   if (jobs[id]) jobs[id].streaming = text;
 }
-function aggiornaJob(id, status, risultato = null, errore = null) {
-  if (jobs[id]) jobs[id] = { status, risultato, errore, logs: jobs[id]?.logs || [], streaming: "" };
+function updateJob(id, status, result = null, error = null) {
+  if (jobs[id]) jobs[id] = { status, result, error, logs: jobs[id]?.logs || [], streaming: "" };
 }
 
 const app = express();
@@ -30,33 +30,35 @@ const PORT = 3443;
 
 const DATA_DIR = path.join(__dirname, "data");
 const NOTES_FILE = path.join(DATA_DIR, "notes.json");
-const ARCHIVIO_FILE = path.join(DATA_DIR, "archivio-analisi.json");
+const ARCHIVE_FILE = path.join(DATA_DIR, "archivio-analisi.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 const PYTHON = path.join(__dirname, "../venv/bin/python");
 const SCRIPT = path.join(__dirname, "../trascrivi.py");
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, "[]");
-if (!fs.existsSync(ARCHIVIO_FILE)) fs.writeFileSync(ARCHIVIO_FILE, "[]");
+if (!fs.existsSync(ARCHIVE_FILE)) fs.writeFileSync(ARCHIVE_FILE, "[]");
 
-function leggiArchivio() {
-  return JSON.parse(fs.readFileSync(ARCHIVIO_FILE, "utf-8"));
+function readArchive() {
+  return JSON.parse(fs.readFileSync(ARCHIVE_FILE, "utf-8"));
 }
-function salvaArchivio(entries) {
-  fs.writeFileSync(ARCHIVIO_FILE, JSON.stringify(entries, null, 2));
+function saveArchive(entries) {
+  fs.writeFileSync(ARCHIVE_FILE, JSON.stringify(entries, null, 2));
 }
-function generaTitolo(risultato) {
-  const data = new Date(risultato.generatoIl).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
-  if (risultato.riassunto?.contesto) return `${risultato.riassunto.contesto} — ${data}`;
-  if (risultato.riassunto?.argomenti?.[0]) return `${risultato.riassunto.argomenti[0]} — ${data}`;
-  const tipi = (risultato.tipi || []).join(", ");
-  return `Analisi ${tipi} — ${data}`;
+function generateTitle(result) {
+  const date = new Date(result.generatoIl).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  if (result.riassunto?.contesto) return `${result.riassunto.contesto} — ${date}`;
+  if (result.riassunto?.argomenti?.[0]) return `${result.riassunto.argomenti[0]} — ${date}`;
+  const types = (result.tipi || []).join(", ");
+  return `Analisi ${types} — ${date}`;
 }
 
-function aggiungiArchivio(risultato) {
-  const entries = leggiArchivio();
-  entries.unshift({ id: Date.now().toString(), titolo: generaTitolo(risultato), ...risultato });
-  salvaArchivio(entries);
+function addToArchive(result) {
+  const entries = readArchive();
+  const id = Date.now().toString();
+  entries.unshift({ id, titolo: generateTitle(result), ...result });
+  saveArchive(entries);
+  return id;
 }
 
 const storage = multer.diskStorage({
@@ -73,22 +75,22 @@ app.use(express.json());
 app.use("/audio", express.static(UPLOADS_DIR));
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-function leggiNote() {
+function readNotes() {
   return JSON.parse(fs.readFileSync(NOTES_FILE, "utf-8"));
 }
 
-function salvaNote(notes) {
+function saveNotes(notes) {
   fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
 }
 
 app.get("/api/notes", (req, res) => {
-  res.json(leggiNote());
+  res.json(readNotes());
 });
 
 app.post("/api/audio", upload.single("audio"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nessun file ricevuto" });
 
-  const nota = {
+  const note = {
     id: Date.now().toString(),
     filename: req.file.filename,
     originalName: req.file.originalname,
@@ -97,22 +99,21 @@ app.post("/api/audio", upload.single("audio"), (req, res) => {
     testo: null,
   };
 
-  const notes = leggiNote();
-  notes.unshift(nota);
-  salvaNote(notes);
+  const notes = readNotes();
+  notes.unshift(note);
+  saveNotes(notes);
 
-  res.json({ ok: true, id: nota.id });
+  res.json({ ok: true, id: note.id });
 
-  // converti in mp3 per compatibilità Safari/iOS
   const mp3Path = req.file.path.replace(/\.[^.]+$/, ".mp3");
   const conv = spawn("ffmpeg", ["-y", "-i", req.file.path, "-q:a", "4", mp3Path]);
   conv.on("close", () => {
     fs.unlinkSync(req.file.path);
     const mp3Filename = path.basename(mp3Path);
-    const aggiornate1 = leggiNote().map((n) =>
-      n.id === nota.id ? { ...n, filename: mp3Filename } : n
+    const updated1 = readNotes().map((n) =>
+      n.id === note.id ? { ...n, filename: mp3Filename } : n
     );
-    salvaNote(aggiornate1);
+    saveNotes(updated1);
 
     const proc = spawn(PYTHON, [SCRIPT, mp3Path]);
     let output = "";
@@ -122,70 +123,80 @@ app.post("/api/audio", upload.single("audio"), (req, res) => {
     proc.on("close", () => {
       const match = output.match(/--- TESTO COMPLETO ---\n([\s\S]*?)\n--- SEGMENTI/);
       const testo = match ? match[1].trim() : output.trim();
-      const aggiornate2 = leggiNote().map((n) =>
-        n.id === nota.id ? { ...n, status: "completata", testo } : n
+      const updated2 = readNotes().map((n) =>
+        n.id === note.id ? { ...n, status: "completata", testo } : n
       );
-      salvaNote(aggiornate2);
+      saveNotes(updated2);
     });
   });
 });
 
 app.post("/api/pulisci", (req, res) => {
-  const jobId = creaJob();
+  const jobId = createJob();
   res.json({ jobId });
 
-  pulisciNote(leggiNote(), (line) => aggiungiLog(jobId, line), (text) => aggiornaStreaming(jobId, text))
-    .then((risultato) => {
-      const aggiornate = leggiNote().map((n) => {
-        const p = risultato.note_pulite.find((x) => x.id === n.id);
+  cleanNotes(readNotes(), (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
+    .then((result) => {
+      const updated = readNotes().map((n) => {
+        const p = result.cleanedNotes.find((x) => x.id === n.id);
         return p ? { ...n, testo_pulito: p.testo_pulito, sentiment: p.sentiment, sintesi: p.sintesi } : n;
       });
-      salvaNote(aggiornate);
-      aggiornaJob(jobId, "completato", { count: risultato.note_pulite.length });
+      saveNotes(updated);
+      updateJob(jobId, "completed", { count: result.cleanedNotes.length });
     })
-    .catch((err) => aggiornaJob(jobId, "errore", null, err.message));
+    .catch((err) => updateJob(jobId, "failed", null, err.message));
 });
 
 app.post("/api/analisi", (req, res) => {
-  const tipo = req.body?.tipo || "tutto";
+  const type = req.body?.tipo || "tutto";
   const noteIds = req.body?.noteIds || null;
-  const jobId = creaJob();
+  const jobId = createJob();
   res.json({ jobId });
 
-  analizzaTipo(leggiNote(), tipo, (line) => aggiungiLog(jobId, line), (text) => aggiornaStreaming(jobId, text), noteIds)
-    .then((risultato) => {
-      aggiungiArchivio(risultato);
-      aggiornaJob(jobId, "completato", risultato);
+  analyzeType(readNotes(), type, (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), noteIds)
+    .then((result) => {
+      const archiveId = addToArchive(result);
+      updateJob(jobId, "completed", { ...result, archiveId });
     })
-    .catch((err) => aggiornaJob(jobId, "errore", null, err.message));
+    .catch((err) => updateJob(jobId, "failed", null, err.message));
 });
 
 app.get("/api/archivio", (req, res) => {
-  res.json(leggiArchivio());
+  res.json(readArchive());
 });
 
 app.patch("/api/archivio/:id", (req, res) => {
-  const { titolo } = req.body;
-  const aggiornate = leggiArchivio().map((e) =>
-    e.id === req.params.id ? { ...e, titolo } : e
+  const updated = readArchive().map((e) =>
+    e.id === req.params.id ? { ...e, ...req.body } : e
   );
-  salvaArchivio(aggiornate);
+  saveArchive(updated);
   res.json({ ok: true });
 });
 
 app.delete("/api/archivio/:id", (req, res) => {
-  salvaArchivio(leggiArchivio().filter((e) => e.id !== req.params.id));
+  saveArchive(readArchive().filter((e) => e.id !== req.params.id));
   res.json({ ok: true });
 });
 
-app.post("/api/chat", (req, res) => {
-  const { domanda, history } = req.body;
-  if (!domanda) return res.status(400).json({ error: "Domanda mancante" });
-  const jobId = creaJob();
+app.post("/api/chat-recap", (req, res) => {
+  const { question, history, analysis } = req.body;
+  if (!question) return res.status(400).json({ error: "Domanda mancante" });
+  if (!analysis) return res.status(400).json({ error: "Analisi mancante" });
+  const jobId = createJob();
   res.json({ jobId });
-  chatConNote(leggiNote(), domanda, history || [], (line) => aggiungiLog(jobId, line), (text) => aggiornaStreaming(jobId, text))
-    .then((risultato) => aggiornaJob(jobId, "completato", risultato))
-    .catch((err) => aggiornaJob(jobId, "errore", null, err.message));
+  chatWithRecap(analysis, question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
+    .then((result) => updateJob(jobId, "completed", result))
+    .catch((err) => updateJob(jobId, "failed", null, err.message));
+});
+
+app.post("/api/chat", (req, res) => {
+  const { question, history } = req.body;
+  if (!question) return res.status(400).json({ error: "Domanda mancante" });
+  const jobId = createJob();
+  res.json({ jobId });
+  chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
+    .then((result) => updateJob(jobId, "completed", result))
+    .catch((err) => updateJob(jobId, "failed", null, err.message));
 });
 
 app.get("/api/job/:id", (req, res) => {
@@ -200,25 +211,42 @@ app.get("/{*path}", (req, res) => {
 
 app.patch("/api/notes/:id", (req, res) => {
   const { testo_pulito, testo } = req.body;
-  const aggiornate = leggiNote().map((n) => {
+  const updated = readNotes().map((n) => {
     if (n.id !== req.params.id) return n;
-    const update = {};
-    if (testo_pulito !== undefined) update.testo_pulito = testo_pulito;
-    if (testo !== undefined) update.testo = testo;
-    return { ...n, ...update };
+    const patch = {};
+    if (testo_pulito !== undefined) patch.testo_pulito = testo_pulito;
+    if (testo !== undefined) patch.testo = testo;
+    return { ...n, ...patch };
   });
-  salvaNote(aggiornate);
+  saveNotes(updated);
   res.json({ ok: true });
 });
 
+app.post("/api/notes/testo", (req, res) => {
+  const { testo } = req.body;
+  if (!testo?.trim()) return res.status(400).json({ error: "Testo mancante" });
+  const note = {
+    id: Date.now().toString(),
+    filename: null,
+    originalName: null,
+    createdAt: new Date().toISOString(),
+    status: "completata",
+    testo: testo.trim(),
+  };
+  const notes = readNotes();
+  notes.unshift(note);
+  saveNotes(notes);
+  res.json({ ok: true, id: note.id });
+});
+
 app.delete("/api/notes/:id", (req, res) => {
-  const notes = leggiNote();
-  const nota = notes.find((n) => n.id === req.params.id);
-  if (nota) {
-    const filePath = path.join(UPLOADS_DIR, nota.filename);
+  const notes = readNotes();
+  const note = notes.find((n) => n.id === req.params.id);
+  if (note) {
+    const filePath = path.join(UPLOADS_DIR, note.filename);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
-  salvaNote(notes.filter((n) => n.id !== req.params.id));
+  saveNotes(notes.filter((n) => n.id !== req.params.id));
   res.json({ ok: true });
 });
 

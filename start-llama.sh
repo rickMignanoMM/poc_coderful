@@ -1,5 +1,5 @@
 #!/bin/bash
-# Avvia llama-server con Gemma 4 (26B MoE, ~13 tok/s, no thinking)
+# Avvia llama-server con Gemma 4 26B-A4B Q4_K_M
 LLAMA_DIR="/home/rickmignano/llama-cpp"
 MODEL="/usr/share/ollama/.ollama/models/blobs/sha256-b8707e57f676d8dd1b80f623b45200cc92e6966b0e95275e606f412095a49fde"
 
@@ -19,9 +19,12 @@ LD_LIBRARY_PATH="$LLAMA_DIR" "$LLAMA_DIR/llama-server" \
   -m "$MODEL" \
   --port 8080 \
   --host 127.0.0.1 \
-  --ctx-size 8192 \
+  --ctx-size 24576 \
   --threads 16 \
   --reasoning off \
+  --flash-attn on \
+  --cache-type-k q8_0 \
+  --cache-type-v q8_0 \
   > /tmp/llama-server.log 2>&1 &
 
 echo "PID=$!"

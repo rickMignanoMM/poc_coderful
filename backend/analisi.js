@@ -41,11 +41,21 @@ Rispondi sempre in italiano, in modo conciso e diretto.
 Usa solo le informazioni presenti nelle note fornite.
 Se la risposta non è nelle note, dillo chiaramente senza inventare nulla.`;
 
+const PROMPT_CHAT_RECAP = `Sei un assistente che corregge e migliora analisi di note vocali in italiano.
+L'utente ti mostrerà una sezione di un'analisi e potrà chiederti di modificarla.
+Se l'utente chiede una modifica, scrivi prima una brevissima conferma, poi il JSON aggiornato racchiuso esattamente tra <patch> e </patch>.
+Il JSON deve avere questa struttura: {"sezione":"eventi|riassunto|suggerimenti|connessioni","data":{...oggetto completo aggiornato...}}
+Esempio:
+Ho aggiornato il riassunto.
+<patch>{"sezione":"riassunto","data":{"contesto":"...","tono":"...","argomenti":["..."],"sintesi":"..."}}</patch>
+Se l'utente fa domande generali, rispondi normalmente senza <patch>.
+Rispondi sempre in italiano.`;
+
 const PROMPTS = {
-  eventi: (testo) => [{ role: "user", content: `${PROMPT_EVENTI}\n\n${testo}` }],
-  riassunto: (testo) => [{ role: "user", content: `${PROMPT_RIASSUNTO}\n\n${testo}` }],
-  suggerimenti: (testo) => [{ role: "user", content: `${PROMPT_SUGGERIMENTI}\n\n${testo}` }],
-  connessioni: (testo) => [{ role: "user", content: `${PROMPT_CONNESSIONI}\n\n${testo}` }],
+  eventi: (text) => [{ role: "user", content: `${PROMPT_EVENTI}\n\n${text}` }],
+  riassunto: (text) => [{ role: "user", content: `${PROMPT_RIASSUNTO}\n\n${text}` }],
+  suggerimenti: (text) => [{ role: "user", content: `${PROMPT_SUGGERIMENTI}\n\n${text}` }],
+  connessioni: (text) => [{ role: "user", content: `${PROMPT_CONNESSIONI}\n\n${text}` }],
 };
 
 const LABELS = {
@@ -74,7 +84,10 @@ async function llamaChat(messages, onStream) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, stream: true, max_tokens: 1024 }),
   });
-  if (!res.ok) throw new Error(`llama-server HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`llama-server HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
 
   let fullContent = "";
   let evalCount = 0;
@@ -109,15 +122,15 @@ async function llamaChat(messages, onStream) {
   return { content: fullContent.trim(), evalCount, tokPerSec };
 }
 
-function estraiJson(testo) {
-  const match = testo.match(/\{[\s\S]*\}/);
+function extractJson(text) {
+  const match = text.match(/\{[\s\S]*\}/);
   if (match) {
     try { return JSON.parse(match[0]); } catch {}
   }
   return null;
 }
 
-function dataOggiRoma() {
+function currentDateRome() {
   return new Date().toLocaleString("it-IT", {
     timeZone: "Europe/Rome",
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
@@ -125,37 +138,37 @@ function dataOggiRoma() {
   });
 }
 
-function costruisciContesto(notes, usaSintesi = false) {
+function buildContext(notes, useSummary = false) {
   return notes.map((n) => {
-    const testo = usaSintesi
+    const text = useSummary
       ? (n.sintesi || n.testo_pulito || n.testo || "")
       : (n.testo_pulito || n.testo || "");
-    let data = "";
+    let date = "";
     try {
-      data = new Date(n.createdAt).toLocaleString("it-IT", {
+      date = new Date(n.createdAt).toLocaleString("it-IT", {
         day: "2-digit", month: "2-digit", year: "numeric",
         hour: "2-digit", minute: "2-digit",
       });
     } catch {}
-    return `[${data}] ${testo}`;
+    return `[${date}] ${text}`;
   }).join("\n");
 }
 
-async function pulisciNote(notes, onLog, onStream) {
-  const da_pulire = notes.filter((n) => n.testo && n.status === "completata");
-  if (!da_pulire.length) throw new Error("Nessuna nota da pulire");
+async function cleanNotes(notes, onLog, onStream) {
+  const toClean = notes.filter((n) => n.testo && n.status === "completata");
+  if (!toClean.length) throw new Error("Nessuna nota da pulire");
   const startTime = Date.now();
-  const note_pulite = [];
+  const cleanedNotes = [];
 
-  for (let i = 0; i < da_pulire.length; i++) {
-    const n = da_pulire[i];
-    emitLog(`Pulisco nota ${i + 1}/${da_pulire.length}...`, startTime, onLog);
+  for (let i = 0; i < toClean.length; i++) {
+    const n = toClean[i];
+    emitLog(`Pulisco nota ${i + 1}/${toClean.length}...`, startTime, onLog);
     if (onStream) onStream("");
 
     const [
       { content, evalCount, tokPerSec },
-      { content: rSent },
-      { content: sintesi },
+      { content: rawSentiment },
+      { content: summary },
     ] = await Promise.all([
       llamaChat([{ role: "system", content: PROMPT_PULIZIA }, { role: "user", content: n.testo }], onStream),
       llamaChat([{ role: "user", content: `${PROMPT_SENTIMENT}\n\n${n.testo}` }], null),
@@ -163,82 +176,113 @@ async function pulisciNote(notes, onLog, onStream) {
     ]);
 
     if (onStream) onStream("");
-    const sentiment = estraiJson(rSent) || { tono: "neutro", emoji: "😐", label: "neutro" };
-    note_pulite.push({ id: n.id, testo_pulito: content, sentiment, sintesi: sintesi.trim() });
+    const sentiment = extractJson(rawSentiment) || { tono: "neutro", emoji: "😐", label: "neutro" };
+    cleanedNotes.push({ id: n.id, testo_pulito: content, sentiment, sintesi: summary.trim() });
     if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
   }
-  return { note_pulite };
+  return { cleanedNotes };
 }
 
-// tipo: "tutto" | "eventi" | "riassunto" | "suggerimenti" | "connessioni"
-// noteIds: array di id da analizzare, null = tutte
-async function analizzaTipo(notes, tipo, onLog, onStream, noteIds = null) {
-  const da_analizzare = notes.filter((n) => {
+async function analyzeType(notes, type, onLog, onStream, noteIds = null) {
+  const toAnalyze = notes.filter((n) => {
     if (n.status !== "completata" || !(n.testo_pulito || n.testo)) return false;
     return noteIds && noteIds.length > 0 ? noteIds.includes(n.id) : true;
   });
-  if (!da_analizzare.length) throw new Error("Nessuna nota disponibile per l'analisi");
+  if (!toAnalyze.length) throw new Error("Nessuna nota disponibile per l'analisi");
   const startTime = Date.now();
-  const contesto = costruisciContesto(da_analizzare);
-  const testo = `Data e ora attuale (fuso orario Roma): ${dataOggiRoma()}\n\nEcco le note:\n\n${contesto}`;
+  const context = buildContext(toAnalyze);
+  const text = `Data e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nEcco le note:\n\n${context}`;
 
-  const tipi = tipo === "tutto"
+  const types = type === "tutto"
     ? ["eventi", "riassunto", "suggerimenti", "connessioni"]
-    : [tipo];
+    : [type];
 
-  emitLog(`Analisi: ${tipi.map((t) => LABELS[t]).join(" · ")}...`, startTime, onLog);
-  if (onStream) onStream("");
-
-  const risultati = await Promise.all(
-    tipi.map((t, i) => llamaChat(PROMPTS[t](testo), i === 0 ? onStream : null))
-  );
-
-  if (onStream) onStream("");
+  const rawResults = [];
+  for (let i = 0; i < types.length; i++) {
+    const t = types[i];
+    emitLog(`${i + 1}/${types.length} ${LABELS[t]}...`, startTime, onLog);
+    if (onStream) onStream("");
+    rawResults.push(await llamaChat(PROMPTS[t](text), onStream));
+    if (onStream) onStream("");
+  }
 
   const result = {};
   const tokList = [];
   const tpsList = [];
 
-  tipi.forEach((t, i) => {
-    const { content, evalCount, tokPerSec } = risultati[i];
+  types.forEach((t, i) => {
+    const { content, evalCount, tokPerSec } = rawResults[i];
     if (evalCount) tokList.push(evalCount);
     if (tokPerSec) tpsList.push(tokPerSec);
 
-    if (t === "eventi")      result.eventi      = estraiJson(content) || { eventi: [] };
-    if (t === "riassunto")   result.riassunto   = estraiJson(content) || { contesto: "", tono: "", argomenti: [], sintesi: content };
-    if (t === "suggerimenti") result.suggerimenti = estraiJson(content) || { suggerimenti: [] };
-    if (t === "connessioni") result.connessioni  = estraiJson(content) || { connessioni: [] };
+    if (t === "eventi")       result.eventi       = extractJson(content) || { eventi: [] };
+    if (t === "riassunto")    result.riassunto    = extractJson(content) || { contesto: "", tono: "", argomenti: [], sintesi: content };
+    if (t === "suggerimenti") result.suggerimenti = extractJson(content) || { suggerimenti: [] };
+    if (t === "connessioni")  result.connessioni  = extractJson(content) || { connessioni: [] };
   });
 
-  const totTok = tokList.reduce((a, b) => a + b, 0);
+  const totalTok = tokList.reduce((a, b) => a + b, 0);
   const meanTps = tpsList.length ? tpsList.reduce((a, b) => a + b, 0) / tpsList.length : 0;
-  if (totTok) emitLog(`↳ ${totTok} tok totali · ${meanTps.toFixed(1)} tok/s medio`, startTime, onLog);
+  if (totalTok) emitLog(`↳ ${totalTok} tok totali · ${meanTps.toFixed(1)} tok/s medio`, startTime, onLog);
   emitLog("Analisi completata ✓", startTime, onLog);
 
-  return { ...result, tipi, generatoIl: new Date().toISOString() };
+  return { ...result, tipi: types, generatoIl: new Date().toISOString() };
 }
 
-async function chatConNote(notes, domanda, history, onLog, onStream) {
-  const note_valide = notes.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo));
-  if (!note_valide.length) throw new Error("Nessuna nota disponibile");
+async function chatWithNotes(notes, question, history, onLog, onStream) {
+  const validNotes = notes.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo));
+  if (!validNotes.length) throw new Error("Nessuna nota disponibile");
   const startTime = Date.now();
-  const contesto = costruisciContesto(note_valide, true);
+  const context = buildContext(validNotes, true);
 
   const messages = [
-    { role: "system", content: `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${dataOggiRoma()}\n\nQueste sono le note vocali dell'utente:\n${contesto}` },
+    { role: "system", content: `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nQueste sono le note vocali dell'utente:\n${context}` },
     ...history.flatMap((t) => [
       { role: "user", content: t.user },
       { role: "assistant", content: t.assistant },
     ]),
-    { role: "user", content: domanda },
+    { role: "user", content: question },
   ];
 
   emitLog("Rispondo...", startTime, onLog);
   if (onStream) onStream("");
-  const { content: risposta, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  const { content: reply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
   if (onStream) onStream("");
   if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
-  return { risposta };
+  return { reply };
 }
 
-module.exports = { pulisciNote, analizzaTipo, chatConNote };
+async function chatWithRecap(analysis, question, history, onLog, onStream) {
+  const startTime = Date.now();
+  const messages = [
+    {
+      role: "system",
+      content: `${PROMPT_CHAT_RECAP}\n\nAnalisi attuale:\n${JSON.stringify(analysis, null, 2)}`,
+    },
+    ...history.flatMap((t) => [
+      { role: "user", content: t.user },
+      { role: "assistant", content: t.assistant },
+    ]),
+    { role: "user", content: question },
+  ];
+
+  emitLog("Rispondo...", startTime, onLog);
+  if (onStream) onStream("");
+  const { content: rawReply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  if (onStream) onStream("");
+  if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+
+  let patch = null;
+  const patchMatch = rawReply.match(/<patch>([\s\S]*?)<\/patch>/);
+  if (patchMatch) {
+    try { patch = JSON.parse(patchMatch[1].trim()); } catch {}
+  }
+  if (!patch) {
+    const fallback = extractJson(rawReply);
+    if (fallback?.sezione && fallback?.data) patch = fallback;
+  }
+  const reply = rawReply.replace(/<patch>[\s\S]*?<\/patch>/g, "").trim();
+  return { reply, patch };
+}
+
+module.exports = { cleanNotes, analyzeType, chatWithNotes, chatWithRecap };

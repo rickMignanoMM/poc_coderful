@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stack Tecnologico — Voice Notes AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #3b82f6;
+      --green:   #22c55e;
+      --orange:  #f97316;
+      --purple:  #8b5cf6;
+      --pink:    #ec4899;
+      --gray:    #64748b;
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── HEADER ── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+    .page-header h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .page-header p {
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    /* ── SECTION LABELS ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── ARCHITECTURE DIAGRAM ── */
+    .arch {
+      max-width: 960px;
+      margin: 0 auto 72px;
+    }
+    .arch-title { margin-bottom: 28px; }
+
+    .arch-layer {
+      display: flex;
+      gap: 12px;
+      position: relative;
+      margin-bottom: 0;
+    }
+
+    .arch-arrow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 40px;
+      position: relative;
+    }
+    .arch-arrow::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--border), var(--border));
+    }
+    .arch-arrow-icon {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+    .arch-arrow.double {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .arch-arrow.double .arch-arrow-col {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      height: 40px;
+    }
+    .arch-arrow.double .arch-arrow-col::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .arch-arrow.double .arch-arrow-col .arch-arrow-icon {
+      position: relative;
+      z-index: 1;
+    }
+
+    .layer-box {
+      flex: 1;
+      border-radius: 16px;
+      padding: 20px 24px;
+      border: 1px solid;
+      position: relative;
+      overflow: hidden;
+    }
+    .layer-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.05;
+      pointer-events: none;
+    }
+
+    .layer-box.blue   { border-color: var(--blue);   background: rgba(59,130,246,.08); }
+    .layer-box.green  { border-color: var(--green);  background: rgba(34,197,94,.08);  }
+    .layer-box.orange { border-color: var(--orange); background: rgba(249,115,22,.08); }
+    .layer-box.purple { border-color: var(--purple); background: rgba(139,92,246,.08); }
+    .layer-box.gray   { border-color: var(--border); background: rgba(100,116,139,.06);}
+
+    .layer-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .layer-box.blue   .layer-label { color: var(--blue);   }
+    .layer-box.green  .layer-label { color: var(--green);  }
+    .layer-box.orange .layer-label { color: var(--orange); }
+    .layer-box.purple .layer-label { color: var(--purple); }
+    .layer-box.gray   .layer-label { color: var(--muted);  }
+
+    .layer-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .layer-box.blue   .chip { border-color: rgba(59,130,246,.4);  color: #93c5fd; background: rgba(59,130,246,.1);  }
+    .layer-box.green  .chip { border-color: rgba(34,197,94,.4);   color: #86efac; background: rgba(34,197,94,.1);   }
+    .layer-box.orange .chip { border-color: rgba(249,115,22,.4);  color: #fdba74; background: rgba(249,115,22,.1);  }
+    .layer-box.purple .chip { border-color: rgba(139,92,246,.4);  color: #c4b5fd; background: rgba(139,92,246,.1);  }
+    .layer-box.gray   .chip { border-color: var(--border);        color: var(--muted); background: rgba(100,116,139,.1); }
+
+    /* ── DATA FLOW ── */
+    .flow {
+      max-width: 960px;
+      margin: 0 auto 72px;
+    }
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0;
+      position: relative;
+    }
+    .flow-steps::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: 28px;
+      right: 28px;
+      height: 2px;
+      background: linear-gradient(to right, var(--blue), var(--green), var(--orange), var(--purple));
+      border-radius: 2px;
+    }
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 0 16px 0;
+      position: relative;
+    }
+    .flow-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+      border: 2px solid;
+      background: var(--bg);
+    }
+    .flow-step:nth-child(1) .flow-num { border-color: var(--blue);   background: rgba(59,130,246,.15); }
+    .flow-step:nth-child(2) .flow-num { border-color: var(--green);  background: rgba(34,197,94,.15);  }
+    .flow-step:nth-child(3) .flow-num { border-color: var(--orange); background: rgba(249,115,22,.15); }
+    .flow-step:nth-child(4) .flow-num { border-color: var(--orange); background: rgba(249,115,22,.15); }
+    .flow-step:nth-child(5) .flow-num { border-color: var(--purple); background: rgba(139,92,246,.15); }
+    .flow-step:nth-child(6) .flow-num { border-color: var(--purple); background: rgba(139,92,246,.15); }
+
+    .flow-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .flow-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── MODEL SPECS ── */
+    .specs {
+      max-width: 960px;
+      margin: 0 auto 72px;
+    }
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .spec-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+    .spec-val {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .spec-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .spec-card:nth-child(1) .spec-val { color: var(--purple); }
+    .spec-card:nth-child(2) .spec-val { color: var(--blue);   }
+    .spec-card:nth-child(3) .spec-val { color: var(--green);  }
+    .spec-card:nth-child(4) .spec-val { color: var(--orange); }
+    .spec-card:nth-child(5) .spec-val { color: var(--pink);   }
+    .spec-card:nth-child(6) .spec-val { color: var(--gray);   color: #94a3b8; }
+
+    /* ── TECH GRID ── */
+    .tech {
+      max-width: 960px;
+      margin: 0 auto 72px;
+    }
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .tech-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      transition: border-color .2s, transform .2s;
+      cursor: default;
+    }
+    .tech-card:hover {
+      transform: translateY(-2px);
+    }
+    .tech-card.blue   { border-color: rgba(59,130,246,.3);  }
+    .tech-card.green  { border-color: rgba(34,197,94,.3);   }
+    .tech-card.orange { border-color: rgba(249,115,22,.3);  }
+    .tech-card.purple { border-color: rgba(139,92,246,.3);  }
+    .tech-card.gray   { border-color: var(--border);        }
+
+    .tech-card:hover.blue   { border-color: var(--blue);   }
+    .tech-card:hover.green  { border-color: var(--green);  }
+    .tech-card:hover.orange { border-color: var(--orange); }
+    .tech-card:hover.purple { border-color: var(--purple); }
+
+    .tech-icon { font-size: 28px; margin-bottom: 10px; }
+    .tech-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .tech-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .tech-tag {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .blue   .tech-tag { background: rgba(59,130,246,.15);  color: #93c5fd; }
+    .green  .tech-tag { background: rgba(34,197,94,.15);   color: #86efac; }
+    .orange .tech-tag { background: rgba(249,115,22,.15);  color: #fdba74; }
+    .purple .tech-tag { background: rgba(139,92,246,.15);  color: #c4b5fd; }
+    .gray   .tech-tag { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+    /* ── FOOTER ── */
+    .page-footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 40px;
+    }
+
+    @media (max-width: 600px) {
+      .flow-steps::before { display: none; }
+      .arch-arrow.double { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="page-header">
+    <h1>Voice Notes AI — Stack Tecnologico</h1>
+    <p>Architettura completa dell'applicazione · Inferenza locale on-device</p>
+  </header>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <section class="arch">
+    <p class="section-title arch-title">Architettura a livelli</p>
+
+    <!-- Layer 1: Browser -->
+    <div class="arch-layer">
+      <div class="layer-box blue">
+        <div class="layer-label">Layer 1 — Client</div>
+        <div class="layer-title">🌐 Browser / PWA</div>
+        <div class="chip-row">
+          <span class="chip">Vue 3 Composition API</span>
+          <span class="chip">Vite 8</span>
+          <span class="chip">MediaRecorder API</span>
+          <span class="chip">SSE Streaming</span>
+          <span class="chip">CSS Scoped</span>
+          <span class="chip">Responsive Mobile</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">
+      <span class="arch-arrow-icon">↕ HTTPS · REST · SSE polling · Static files</span>
+    </div>
+
+    <!-- Layer 2: Backend -->
+    <div class="arch-layer">
+      <div class="layer-box green">
+        <div class="layer-label">Layer 2 — Backend</div>
+        <div class="layer-title">⚙️ Node.js + Express</div>
+        <div class="chip-row">
+          <span class="chip">Express REST API</span>
+          <span class="chip">Multer (upload)</span>
+          <span class="chip">Job Store in-memory</span>
+          <span class="chip">JSON file storage</span>
+          <span class="chip">HTTPS (mkcert)</span>
+          <span class="chip">HTTP :3000 (ngrok)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-arrow double">
+      <div class="arch-arrow-col"><span class="arch-arrow-icon">↓ WebM/MP4</span></div>
+      <div class="arch-arrow-col"><span class="arch-arrow-icon">↓ testo grezzo</span></div>
+    </div>
+
+    <!-- Layer 3: Media processing (split) -->
+    <div class="arch-layer">
+      <div class="layer-box orange" style="flex:1">
+        <div class="layer-label">Layer 3a — Conversione</div>
+        <div class="layer-title">🎞️ FFmpeg</div>
+        <div class="chip-row">
+          <span class="chip">WebM → MP3</span>
+          <span class="chip">-q:a 4</span>
+          <span class="chip">Compatibilità Safari</span>
+        </div>
+      </div>
+      <div class="layer-box orange" style="flex:1">
+        <div class="layer-label">Layer 3b — Trascrizione</div>
+        <div class="layer-title">🎤 Python + Whisper</div>
+        <div class="chip-row">
+          <span class="chip">openai-whisper</span>
+          <span class="chip">Python venv</span>
+          <span class="chip">Audio → Testo IT</span>
+          <span class="chip">Segmentazione</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">
+      <span class="arch-arrow-icon">↓ OpenAI-compatible API · HTTP · SSE streaming</span>
+    </div>
+
+    <!-- Layer 4: LLM -->
+    <div class="arch-layer">
+      <div class="layer-box purple">
+        <div class="layer-label">Layer 4 — Inferenza AI</div>
+        <div class="layer-title">🤖 llama.cpp · llama-server :8080</div>
+        <div class="chip-row">
+          <span class="chip">Gemma 4 26B-A4B MoE</span>
+          <span class="chip">Q4_K_M · 16 GB</span>
+          <span class="chip">Flash Attention</span>
+          <span class="chip">KV Cache q8_0</span>
+          <span class="chip">ctx 24 576 token</span>
+          <span class="chip">16 thread CPU</span>
+          <span class="chip">~13–16 tok/s</span>
+          <span class="chip">reasoning off</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">
+      <span class="arch-arrow-icon">↑ systemd user service · autostart al boot</span>
+    </div>
+
+    <!-- Layer 5: Infrastructure -->
+    <div class="arch-layer">
+      <div class="layer-box gray">
+        <div class="layer-label">Layer 5 — Infrastruttura</div>
+        <div class="layer-title">🖥️ Intel Core Ultra 7 155H</div>
+        <div class="chip-row">
+          <span class="chip">6P + 8E cores · 16 thread</span>
+          <span class="chip">NPU integrata</span>
+          <span class="chip">systemd services</span>
+          <span class="chip">Ollama (model mgmt)</span>
+          <span class="chip">mkcert (TLS locale)</span>
+          <span class="chip">Linux</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA FLOW -->
+  <section class="flow">
+    <p class="section-title">Flusso dei dati</p>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-num">🎙️</div>
+        <div class="flow-name">Registrazione</div>
+        <div class="flow-desc">MediaRecorder API cattura audio WebM/MP4 dal browser</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">📡</div>
+        <div class="flow-name">Upload</div>
+        <div class="flow-desc">File inviato via multipart/form-data a Express + Multer</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">🎞️</div>
+        <div class="flow-name">Conversione</div>
+        <div class="flow-desc">FFmpeg converte in MP3 per compatibilità universale</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">✍️</div>
+        <div class="flow-name">Trascrizione</div>
+        <div class="flow-desc">Whisper (Python) genera testo italiano con timestamp</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">🧠</div>
+        <div class="flow-name">Analisi AI</div>
+        <div class="flow-desc">llama-server: pulizia · sentiment · sintesi · eventi · chat</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">📱</div>
+        <div class="flow-name">Visualizzazione</div>
+        <div class="flow-desc">Vue 3 mostra risultati in streaming via SSE polling</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODEL SPECS -->
+  <section class="specs">
+    <p class="section-title">Specifiche modello — Gemma 4 26B-A4B MoE</p>
+    <div class="specs-grid">
+      <div class="spec-card">
+        <div class="spec-val">26B</div>
+        <div class="spec-label">Parametri totali</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-val">~4B</div>
+        <div class="spec-label">Parametri attivi / token</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-val">16 GB</div>
+        <div class="spec-label">Dimensione modello</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-val">~16</div>
+        <div class="spec-label">tok/s su CPU</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-val">24 K</div>
+        <div class="spec-label">Token di contesto</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-val">Q4_K_M</div>
+        <div class="spec-label">Quantizzazione</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH CARDS -->
+  <section class="tech">
+    <p class="section-title">Tutte le tecnologie</p>
+    <div class="tech-grid">
+
+      <div class="tech-card blue">
+        <div class="tech-icon">💚</div>
+        <div class="tech-name">Vue 3</div>
+        <div class="tech-desc">Composition API, script setup, reactivity system con ref/computed/watch</div>
+        <span class="tech-tag">Frontend</span>
+      </div>
+
+      <div class="tech-card blue">
+        <div class="tech-icon">⚡</div>
+        <div class="tech-name">Vite 8</div>
+        <div class="tech-desc">Build tool con HMR, ottimizzazione bundle, tree-shaking</div>
+        <span class="tech-tag">Frontend</span>
+      </div>
+
+      <div class="tech-card blue">
+        <div class="tech-icon">🎙️</div>
+        <div class="tech-name">MediaRecorder API</div>
+        <div class="tech-desc">Web API nativa per cattura audio/video dal browser senza plugin</div>
+        <span class="tech-tag">Web API</span>
+      </div>
+
+      <div class="tech-card blue">
+        <div class="tech-icon">📡</div>
+        <div class="tech-name">SSE Streaming</div>
+        <div class="tech-desc">Server-Sent Events per streaming token-by-token del testo generato</div>
+        <span class="tech-tag">Web API</span>
+      </div>
+
+      <div class="tech-card green">
+        <div class="tech-icon">🟢</div>
+        <div class="tech-name">Node.js</div>
+        <div class="tech-desc">Runtime JavaScript server-side, v24 LTS, event loop non-blocking</div>
+        <span class="tech-tag">Backend</span>
+      </div>
+
+      <div class="tech-card green">
+        <div class="tech-icon">🚂</div>
+        <div class="tech-name">Express</div>
+        <div class="tech-desc">REST API, routing, middleware CORS, static file serving</div>
+        <span class="tech-tag">Backend</span>
+      </div>
+
+      <div class="tech-card green">
+        <div class="tech-icon">📁</div>
+        <div class="tech-name">Multer</div>
+        <div class="tech-desc">Gestione upload multipart, storage su disco, naming dinamico</div>
+        <span class="tech-tag">Backend</span>
+      </div>
+
+      <div class="tech-card green">
+        <div class="tech-icon">🗃️</div>
+        <div class="tech-name">JSON Storage</div>
+        <div class="tech-desc">Persistenza file-based: notes.json, archivio-analisi.json, zero database</div>
+        <span class="tech-tag">Storage</span>
+      </div>
+
+      <div class="tech-card orange">
+        <div class="tech-icon">🎞️</div>
+        <div class="tech-name">FFmpeg</div>
+        <div class="tech-desc">Conversione audio WebM/MP4 → MP3, compatibilità cross-browser</div>
+        <span class="tech-tag">Media</span>
+      </div>
+
+      <div class="tech-card orange">
+        <div class="tech-icon">🐍</div>
+        <div class="tech-name">Python + Whisper</div>
+        <div class="tech-desc">openai-whisper per trascrizione automatica in italiano con segmentazione</div>
+        <span class="tech-tag">AI / STT</span>
+      </div>
+
+      <div class="tech-card purple">
+        <div class="tech-icon">⚙️</div>
+        <div class="tech-name">llama.cpp</div>
+        <div class="tech-desc">Inferenza LLM su CPU consumer, API OpenAI-compatible, SSE streaming</div>
+        <span class="tech-tag">AI Runtime</span>
+      </div>
+
+      <div class="tech-card purple">
+        <div class="tech-icon">🤖</div>
+        <div class="tech-name">Gemma 4 26B MoE</div>
+        <div class="tech-desc">Mixture of Experts: 26B param totali, ~4B attivi/token, fine-tuned italiano</div>
+        <span class="tech-tag">LLM</span>
+      </div>
+
+      <div class="tech-card purple">
+        <div class="tech-icon">🔢</div>
+        <div class="tech-name">Quantizzazione Q4_K_M</div>
+        <div class="tech-desc">4-bit K-quant mixed: rapporto qualità/velocità ottimale per CPU inference</div>
+        <span class="tech-tag">Ottimizzazione</span>
+      </div>
+
+      <div class="tech-card purple">
+        <div class="tech-icon">⚡</div>
+        <div class="tech-name">Flash Attention</div>
+        <div class="tech-desc">Kernel attention ottimizzato: riduce memoria KV cache e accelera il prefill</div>
+        <span class="tech-tag">Ottimizzazione</span>
+      </div>
+
+      <div class="tech-card gray">
+        <div class="tech-icon">🔒</div>
+        <div class="tech-name">mkcert</div>
+        <div class="tech-desc">TLS locale trusted per HTTPS su LAN, necessario per MediaRecorder API</div>
+        <span class="tech-tag">Infrastruttura</span>
+      </div>
+
+      <div class="tech-card gray">
+        <div class="tech-icon">🐳</div>
+        <div class="tech-name">Ollama</div>
+        <div class="tech-desc">Download e gestione modelli GGUF, blob riutilizzati direttamente da llama.cpp</div>
+        <span class="tech-tag">Infrastruttura</span>
+      </div>
+
+      <div class="tech-card gray">
+        <div class="tech-icon">🔧</div>
+        <div class="tech-name">systemd</div>
+        <div class="tech-desc">User services per autostart al boot: llama-server e poc-backend</div>
+        <span class="tech-tag">Infrastruttura</span>
+      </div>
+
+      <div class="tech-card gray">
+        <div class="tech-icon">🖥️</div>
+        <div class="tech-name">Intel Core Ultra 7 155H</div>
+        <div class="tech-desc">6P + 8E cores, NPU integrata, 16 thread per inferenza locale on-device</div>
+        <span class="tech-tag">Hardware</span>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    Voice Notes AI · Stack 100% locale · Nessun dato inviato al cloud
+  </footer>
+
+</body>
+</html>
