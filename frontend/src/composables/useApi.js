@@ -9,10 +9,20 @@ export function setBackend(url) {
   else localStorage.removeItem(STORAGE_KEY);
 }
 
-export function apiFetch(path, options) {
+export async function apiFetch(path, options) {
   const base = baseUrl.value;
   const url = base ? `${base.replace(/\/$/, "")}${path}` : path;
-  return fetch(url, options);
+  try {
+    return await fetch(url, options);
+  } catch {
+    if (base) {
+      // Backend configurato non raggiungibile (es. cert self-signed bloccato),
+      // torno all'origin della pagina corrente e resetto la preferenza
+      setBackend("");
+      return fetch(path, options);
+    }
+    throw new Error(`Impossibile raggiungere il backend`);
+  }
 }
 
 export function mediaUrl(path) {
