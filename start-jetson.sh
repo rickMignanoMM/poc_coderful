@@ -4,15 +4,16 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 
-# CPU governor → performance (richiede sudoers installato una volta con:
-#   sudo install -m 0440 tools/50-poc-cpu-governor /etc/sudoers.d/)
-CURRENT_GOV=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)
-if [ "$CURRENT_GOV" != "performance" ]; then
-  echo "Imposto CPU governor a performance..."
-  sudo "$DIR/tools/set-cpu-governor.sh" performance || echo "WARN: impossibile impostare il governor (esegui: sudo install -m 0440 tools/50-poc-cpu-governor /etc/sudoers.d/)"
-else
-  echo "CPU governor già in modalità performance."
-fi
+# Max power mode e clock massimi
+echo "Imposto MAXN power mode..."
+sudo nvpmodel -m 0
+sudo jetson_clocks
+echo "Clocks al massimo."
+
+# Variabili Ollama per max performance
+export OLLAMA_FLASH_ATTENTION=1
+export OLLAMA_KV_CACHE_TYPE=q8_0
+export OLLAMA_NUM_PARALLEL=1
 
 # Avvia Ollama se non attivo
 if ! curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
@@ -25,16 +26,6 @@ if ! curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
   echo "Ollama pronto."
 else
   echo "Ollama già in ascolto."
-fi
-
-# Avvia ngrok se non attivo
-if ! curl -s http://127.0.0.1:4040/api/tunnels > /dev/null 2>&1; then
-  echo "Avvio ngrok (obtain-crave-glider.ngrok-free.dev)..."
-  ~/.local/bin/ngrok http --url=obtain-crave-glider.ngrok-free.dev 3000 > /tmp/ngrok.log 2>&1 &
-  sleep 3
-  echo "ngrok avviato."
-else
-  echo "ngrok già in ascolto."
 fi
 
 # Avvia Whisper server se non attivo

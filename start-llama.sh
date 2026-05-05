@@ -20,7 +20,10 @@ LD_LIBRARY_PATH="$LLAMA_DIR" "$LLAMA_DIR/llama-server" \
   --port 8080 \
   --host 127.0.0.1 \
   --ctx-size 24576 \
-  --threads 16 \
+  --threads 20 \
+  --threads-batch 22 \
+  --batch-size 2048 \
+  --mlock \
   --reasoning off \
   --flash-attn on \
   --cache-type-k q8_0 \
