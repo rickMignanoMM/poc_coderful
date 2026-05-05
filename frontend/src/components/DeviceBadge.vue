@@ -116,7 +116,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.device-badge { position: fixed; bottom: 20px; left: 20px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; backdrop-filter: blur(12px); z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
+.device-badge { position: fixed; bottom: 100px; left: 20px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; backdrop-filter: blur(12px); z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
 .device-tuxedo { background: rgba(88, 86, 214, 0.92); color: #fff; }
 .device-jetson  { background: rgba(52, 199, 89, 0.92); color: #fff; }
 .device-default { background: rgba(30, 30, 30, 0.88); color: #fff; }
