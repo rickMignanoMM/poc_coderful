@@ -230,6 +230,7 @@ async function analyzeType(notes, type, onLog, onStream, noteIds = null) {
   const totalTok = tokList.reduce((a, b) => a + b, 0);
   const meanTps = tpsList.length ? tpsList.reduce((a, b) => a + b, 0) / tpsList.length : 0;
   const power = powerSampler.stop();
+  if (power && meanTps > 0) power.tokPerSec = +meanTps.toFixed(1);
   if (totalTok) {
     let log = `↳ ${totalTok} tok · ${meanTps.toFixed(1)} tok/s`;
     if (power) log += ` · ${power.watts} W · ${power.joules} J`;
