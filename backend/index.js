@@ -254,6 +254,31 @@ app.post("/api/notes/testo", (req, res) => {
   res.json({ ok: true, id: note.id });
 });
 
+app.post("/api/notes/:id/retranscribe", (req, res) => {
+  const notes = readNotes();
+  const note = notes.find((n) => n.id === req.params.id);
+  if (!note) return res.status(404).json({ error: "Nota non trovata" });
+  if (!note.filename) return res.status(400).json({ error: "Nessun file audio" });
+
+  const mp3Path = path.join(UPLOADS_DIR, note.filename);
+  if (!fs.existsSync(mp3Path)) return res.status(404).json({ error: "File audio non trovato" });
+
+  saveNotes(notes.map((n) => n.id === note.id ? { ...n, status: "in_elaborazione", testo: null } : n));
+  res.json({ ok: true });
+
+  const proc = spawn(PYTHON, [SCRIPT, mp3Path]);
+  let output = "";
+  proc.stdout.on("data", (d) => (output += d.toString()));
+  proc.stderr.on("data", () => {});
+  proc.on("close", () => {
+    const match = output.match(/--- TESTO COMPLETO ---\n([\s\S]*?)\n--- SEGMENTI/);
+    const testo = match ? match[1].trim() : output.trim();
+    saveNotes(readNotes().map((n) =>
+      n.id === note.id ? { ...n, status: "completata", testo } : n
+    ));
+  });
+});
+
 app.post("/api/notes/import", (req, res) => {
   const incoming = req.body;
   if (!Array.isArray(incoming)) return res.status(400).json({ error: "Formato non valido" });

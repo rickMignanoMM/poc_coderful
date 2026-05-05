@@ -287,7 +287,11 @@
                       <span>
                         <span v-if="nota.testo_pulito" class="label-pulito">✨</span>
                         <span :class="{ 'text-clamped': !expandedIds.has(nota.id) }">{{ nota.testo_pulito || nota.testo || '' }}</span>
-                        <span v-if="!nota.testo" class="muted">In trascrizione...</span>
+                        <span v-if="nota.status === 'in_elaborazione'" class="muted">In trascrizione...</span>
+                        <span v-else-if="!nota.testo" class="muted">
+                          Nessun testo trascritto.
+                          <button v-if="nota.filename" class="btn-retranscribe" @click.stop="retranscribe(nota)">🔄 Rielabora</button>
+                        </span>
                         <button v-if="nota.testo" class="btn-expand" @click.stop="toggleExpand(nota.id)">
                           {{ expandedIds.has(nota.id) ? 'mostra meno ▲' : 'mostra tutto ▼' }}
                         </button>
@@ -1038,6 +1042,11 @@ function buildCalendarUrl(ev) {
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
 
+async function retranscribe(nota) {
+  await apiFetch(`/api/notes/${nota.id}/retranscribe`, { method: "POST" });
+  await loadNotes();
+}
+
 async function addTextNote() {
   if (!textInput.value.trim()) return;
   await apiFetch("/api/notes/testo", {
@@ -1322,6 +1331,7 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .chat-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .chat-mode-btn.active { background: #007aff; border-color: #007aff; color: #fff; }
 .notes-used-badge { display: inline-block; font-size: 11px; color: #007aff; background: #e8f0ff; border-radius: 20px; padding: 2px 8px; margin-top: 4px; }
+.btn-retranscribe { background: none; border: none; color: #007aff; font-size: 12px; cursor: pointer; padding: 0 4px; text-decoration: underline; }
 .recap-sec-bar { display: flex; gap: 6px; padding: 8px 24px 0; flex-wrap: wrap; }
 .recap-sec-btn { padding: 5px 12px; border: 1.5px solid #e5e5ea; border-radius: 20px; background: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 .recap-sec-btn.active { background: #ff9500; border-color: #ff9500; color: #fff; }
