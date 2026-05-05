@@ -4,7 +4,9 @@
       <h1>📋 Backoffice Note Audio</h1>
       <div class="header-right">
         <input v-model="search" class="search" placeholder="Cerca nelle trascrizioni..." />
-        <button class="btn-io" @click="exportNotes" title="Esporta note">⬇ Export</button>
+        <button class="btn-io" @click="exportNotes" title="Esporta note">
+          {{ selectedIds.size > 0 ? `⬇ Export (${selectedIds.size})` : '⬇ Export' }}
+        </button>
         <button class="btn-io" @click="$refs.importInput.click()" title="Importa note">⬆ Import</button>
         <input ref="importInput" type="file" accept=".json" style="display:none" @change="importNotes" />
         <button class="btn-pulisci" :disabled="cleanupLoading || analysisLoading" @click="startCleanup">
@@ -1071,7 +1073,10 @@ async function addTextNote() {
 
 async function exportNotes() {
   const res = await apiFetch("/api/notes");
-  const notes = await res.json();
+  const all = await res.json();
+  const notes = selectedIds.value.size > 0
+    ? all.filter((n) => selectedIds.value.has(n.id))
+    : all;
   const blob = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
