@@ -15,14 +15,17 @@ if [ ! -f "$LLAMA_DIR/llama-server" ]; then
 fi
 
 echo "Avvio llama-server (Gemma 4 26B-A4B)..."
-LD_LIBRARY_PATH="$LLAMA_DIR" "$LLAMA_DIR/llama-server" \
+# Pinna ai soli P-core (0-11: 6 fisici × 2 HT)
+# Gli E-core (12-19) e LP E-core (20-21) creano stragglers nell'inferenza
+export LD_LIBRARY_PATH="$LLAMA_DIR"
+taskset -c 0-11 "$LLAMA_DIR/llama-server" \
   -m "$MODEL" \
   --port 8080 \
   --host 127.0.0.1 \
   --ctx-size 24576 \
-  --threads 20 \
-  --threads-batch 22 \
-  --batch-size 2048 \
+  --threads 12 \
+  --threads-batch 12 \
+  --batch-size 512 \
   --mlock \
   --reasoning off \
   --flash-attn on \
