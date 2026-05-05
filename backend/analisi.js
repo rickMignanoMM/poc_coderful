@@ -1,5 +1,5 @@
-const LLAMA_BASE = "http://127.0.0.1:11434";
-const OLLAMA_MODEL = "qwen3:14b";
+const AI_BASE_URL = process.env.AI_BASE_URL || "http://127.0.0.1:8080";
+const AI_MODEL = process.env.AI_MODEL || "local";
 
 const PROMPT_PULIZIA = `Sei un correttore di trascrizioni audio in italiano.
 Il testo potrebbe contenere parole storpiate, frasi incomplete, ripetizioni o errori di trascrizione automatica.
@@ -80,25 +80,24 @@ function emitLog(msg, startTime, onLog) {
 }
 
 async function llamaChat(messages, onStream) {
-  const res = await fetch(`${LLAMA_BASE}/api/chat`, {
+  const res = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      think: false,
+      model: AI_MODEL,
       messages,
       stream: true,
-      options: { num_predict: 1024 },
+      max_tokens: 1024,
     }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Ollama HTTP ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`AI HTTP ${res.status}: ${body.slice(0, 200)}`);
   }
 
   let fullContent = "";
   let evalCount = 0;
-  let tokPerSec = 0;
+  let firstTokenTime = null;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
@@ -110,23 +109,24 @@ async function llamaChat(messages, onStream) {
     const lines = buf.split("\n");
     buf = lines.pop();
     for (const line of lines) {
-      if (!line.trim()) continue;
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") continue;
       try {
-        const chunk = JSON.parse(line);
-        const delta = chunk.message?.content;
+        const chunk = JSON.parse(data);
+        const delta = chunk.choices?.[0]?.delta?.content;
         if (delta) {
+          if (!firstTokenTime) firstTokenTime = Date.now();
           fullContent += delta;
           if (onStream) onStream(fullContent);
         }
-        if (chunk.done) {
-          evalCount = chunk.eval_count ?? 0;
-          const ns = chunk.eval_duration ?? 0;
-          tokPerSec = ns > 0 ? (evalCount / (ns / 1e9)) : 0;
-        }
+        if (chunk.usage?.completion_tokens) evalCount = chunk.usage.completion_tokens;
       } catch {}
     }
   }
 
+  const elapsed = firstTokenTime ? (Date.now() - firstTokenTime) / 1000 : 0;
+  const tokPerSec = elapsed > 0 && evalCount > 0 ? evalCount / elapsed : 0;
   return { content: fullContent.trim(), evalCount, tokPerSec };
 }
 
