@@ -105,6 +105,7 @@ app.get("/api/config", (req, res) => {
     deviceSubtitle: process.env.DEVICE_SUBTITLE || "",
     deviceSpecs: specs,
     peers,
+    aiModel: process.env.AI_MODEL || null,
   });
 });
 

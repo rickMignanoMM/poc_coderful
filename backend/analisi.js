@@ -83,6 +83,7 @@ async function llamaChat(messages, onStream) {
       model: AI_MODEL,
       messages,
       stream: true,
+      stream_options: { include_usage: true },
       max_tokens: 1024,
     }),
   });
@@ -138,7 +139,10 @@ async function llamaChat(messages, onStream) {
 }
 
 function extractJson(text) {
-  const clean = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const clean = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/```(?:json)?\s*([\s\S]*?)```/gi, "$1")
+    .trim();
   const match = clean.match(/\{[\s\S]*\}/);
   if (match) {
     try { return JSON.parse(match[0]); } catch {}
