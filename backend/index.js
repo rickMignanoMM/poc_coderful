@@ -35,7 +35,7 @@ const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 const WHISPER_URL = `http://127.0.0.1:${process.env.WHISPER_PORT || 8765}`;
 
 async function whisperTranscribe(audioPath) {
-  const signal = AbortSignal.timeout(120_000);
+  const signal = AbortSignal.timeout(600_000);
   const res = await fetch(WHISPER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
