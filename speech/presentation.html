@@ -738,7 +738,86 @@
     </div>
   </div>
 
-  <!-- ── SLIDE 9: CPU OPT ── -->
+  <!-- ── SLIDE 9: CLIENT STACK ── -->
+  <div class="slide slide-split" data-section="Under the hood">
+    <div style="display:flex;flex-direction:column;gap:14px;flex:1;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+        <span class="hw-tag tuxedo" style="font-size:11px;">Tuxedo PC</span>
+        <span style="font-size:13px;color:var(--fg2);">Intel Core Ultra 7 155H</span>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label purple">OS</div>
+        <div class="sb-val">Linux (Tuxedo OS / Ubuntu)</div>
+        <div class="sb-sub">kernel 6.x · x86_64</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label magenta">LLM Runtime</div>
+        <div class="sb-val">llama.cpp — CPU only</div>
+        <div class="sb-sub">taskset -c 0-11 · --threads 12 · --mlock · governor=performance</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label magenta">Modello</div>
+        <div class="sb-val">Gemma 4 26B-A4B Q4_K_M</div>
+        <div class="sb-sub">16 GB su disco · Flash Attn ON · KV cache q8_0 · ctx 24k</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label cyan">Trascrizione</div>
+        <div class="sb-val">faster-whisper large-v3-turbo</div>
+        <div class="sb-sub">device=cpu · compute_type=int8 · 8 thread · beam_size=1</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label yellow">Energia</div>
+        <div class="sb-val">Intel RAPL</div>
+        <div class="sb-sub">/sys/class/powercap/intel-rapl:0/energy_uj · lettura diretta</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label green">Accesso remoto</div>
+        <div class="sb-val">ngrok + HTTPS (mkcert)</div>
+        <div class="sb-sub">:3443 HTTPS LAN · :3000 HTTP → ngrok tunnel</div>
+      </div>
+    </div>
+
+    <div style="width:2px;background:var(--border);flex-shrink:0;border-radius:2px;"></div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;flex:1;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+        <span class="hw-tag jetson" style="font-size:11px;">Jetson Orin</span>
+        <span style="font-size:13px;color:var(--fg2);">NVIDIA Ampere GPU</span>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label purple">OS</div>
+        <div class="sb-val">JetPack / Ubuntu ARM</div>
+        <div class="sb-sub">aarch64 · nvpmodel -m 0 (MAXN) · jetson_clocks</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label green">LLM Runtime</div>
+        <div class="sb-val">Ollama — GPU offload</div>
+        <div class="sb-sub">OLLAMA_FLASH_ATTENTION=1 · OLLAMA_KV_CACHE_TYPE=q8_0</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label green">Modello</div>
+        <div class="sb-val">Qwen3 30B-A3B Q4_K_M</div>
+        <div class="sb-sub">MoE · Flash Attn ON · KV cache q8_0 · unified memory</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label cyan">Trascrizione</div>
+        <div class="sb-val">faster-whisper large-v3-turbo</div>
+        <div class="sb-sub">device=cuda · compute_type=float16 · beam_size=1</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label yellow">Energia</div>
+        <div class="sb-val">INA hwmon sensor</div>
+        <div class="sb-sub">/sys/class/hwmon/hwmon*/in1_input · on-board power rail</div>
+      </div>
+      <div class="stack-box">
+        <div class="sb-label green">Accesso remoto</div>
+        <div class="sb-val">HTTPS (self-signed)</div>
+        <div class="sb-sub">:3443 HTTPS LAN · raggiungibile dai peer nel badge</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 10: CPU OPT ── -->
   <div class="slide slide-content" data-section="Ottimizzazioni CPU">
     <div class="kicker">Dettaglio tecnico</div>
     <h2>Perché <span class="accent">P-core only</span> è più veloce</h2>
