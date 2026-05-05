@@ -443,7 +443,8 @@
             </div>
           </div>
           <div v-if="chatLoading" class="bubble-row assistant">
-            <div class="bubble typing"><span></span><span></span><span></span></div>
+            <div v-if="chatStreaming" class="bubble stream-bubble">{{ chatStreaming }}<span class="stream-cursor">▋</span></div>
+            <div v-else class="bubble typing"><span></span><span></span><span></span></div>
           </div>
         </template>
       </div>
@@ -1332,6 +1333,8 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .bubble-wrap { display: flex; flex-direction: column; gap: 6px; max-width: 70%; }
 .bubble-row.user .bubble-wrap { align-items: flex-end; }
 .bubble { padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.stream-cursor { display: inline-block; width: 2px; height: 1em; background: #1d1d1f; margin-left: 2px; vertical-align: text-bottom; animation: blink 0.8s step-end infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .bubble-row.user .bubble { background: #007aff; color: #fff; border-bottom-right-radius: 4px; }
 .bubble-row.assistant .bubble { background: #fff; color: #1d1d1f; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .patch-applied-badge { align-self: flex-start; padding: 4px 10px; background: #e8faea; color: #1a7f37; border-radius: 20px; font-size: 12px; font-weight: 600; }
