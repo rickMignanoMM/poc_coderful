@@ -11,12 +11,14 @@ MODEL = os.environ.get("WHISPER_MODEL", "large-v3-turbo")
 PORT  = int(os.environ.get("WHISPER_PORT", "8765"))
 
 print(f"Carico modello {MODEL}...", flush=True)
+CPU_THREADS = int(os.environ.get("WHISPER_THREADS", str(os.cpu_count() or 4)))
+
 try:
     model = WhisperModel(MODEL, device="cuda", compute_type="float16")
     print("Modello su CUDA", flush=True)
 except Exception:
-    model = WhisperModel(MODEL, device="cpu", compute_type="int8")
-    print("Modello su CPU", flush=True)
+    model = WhisperModel(MODEL, device="cpu", compute_type="int8", cpu_threads=CPU_THREADS)
+    print(f"Modello su CPU ({CPU_THREADS} thread)", flush=True)
 
 lock = threading.Lock()
 
