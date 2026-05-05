@@ -32,8 +32,18 @@ const DATA_DIR = path.join(__dirname, "data");
 const NOTES_FILE = path.join(DATA_DIR, "notes.json");
 const ARCHIVE_FILE = path.join(DATA_DIR, "archivio-analisi.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-const PYTHON = path.join(__dirname, "../venv/bin/python");
-const SCRIPT = path.join(__dirname, "../trascrivi.py");
+const WHISPER_URL = `http://127.0.0.1:${process.env.WHISPER_PORT || 8765}`;
+
+async function whisperTranscribe(audioPath) {
+  const res = await fetch(WHISPER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: audioPath }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Whisper error");
+  return data.testo;
+}
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, "[]");
@@ -128,19 +138,18 @@ app.post("/api/audio", upload.single("audio"), (req, res) => {
     );
     saveNotes(updated1);
 
-    const proc = spawn(PYTHON, [SCRIPT, mp3Path]);
-    let output = "";
-    proc.stdout.on("data", (d) => (output += d.toString()));
-    proc.stderr.on("data", () => {});
-
-    proc.on("close", () => {
-      const match = output.match(/--- TESTO COMPLETO ---\n([\s\S]*?)\n--- SEGMENTI/);
-      const testo = match ? match[1].trim() : output.trim();
-      const updated2 = readNotes().map((n) =>
-        n.id === note.id ? { ...n, status: "completata", testo } : n
-      );
-      saveNotes(updated2);
-    });
+    whisperTranscribe(mp3Path)
+      .then((testo) => {
+        saveNotes(readNotes().map((n) =>
+          n.id === note.id ? { ...n, status: "completata", testo } : n
+        ));
+      })
+      .catch((err) => {
+        console.error("Whisper error:", err.message);
+        saveNotes(readNotes().map((n) =>
+          n.id === note.id ? { ...n, status: "completata", testo: "" } : n
+        ));
+      });
   });
 });
 
@@ -266,17 +275,18 @@ app.post("/api/notes/:id/retranscribe", (req, res) => {
   saveNotes(notes.map((n) => n.id === note.id ? { ...n, status: "in_elaborazione", testo: null } : n));
   res.json({ ok: true });
 
-  const proc = spawn(PYTHON, [SCRIPT, mp3Path]);
-  let output = "";
-  proc.stdout.on("data", (d) => (output += d.toString()));
-  proc.stderr.on("data", () => {});
-  proc.on("close", () => {
-    const match = output.match(/--- TESTO COMPLETO ---\n([\s\S]*?)\n--- SEGMENTI/);
-    const testo = match ? match[1].trim() : output.trim();
-    saveNotes(readNotes().map((n) =>
-      n.id === note.id ? { ...n, status: "completata", testo } : n
-    ));
-  });
+  whisperTranscribe(mp3Path)
+    .then((testo) => {
+      saveNotes(readNotes().map((n) =>
+        n.id === note.id ? { ...n, status: "completata", testo } : n
+      ));
+    })
+    .catch((err) => {
+      console.error("Whisper retranscribe error:", err.message);
+      saveNotes(readNotes().map((n) =>
+        n.id === note.id ? { ...n, status: "completata", testo: "" } : n
+      ));
+    });
 });
 
 app.post("/api/notes/import", (req, res) => {

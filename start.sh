@@ -27,6 +27,25 @@ else
   echo "ngrok già in ascolto."
 fi
 
+# Avvia Whisper server se non attivo
+if ! curl -s http://127.0.0.1:8765 > /dev/null 2>&1; then
+  echo "Avvio Whisper server..."
+  "$DIR/venv/bin/python" "$DIR/whisper_server.py" > /tmp/whisper_server.log 2>&1 &
+  WHISPER_PID=$!
+  for i in $(seq 1 60); do
+    sleep 1
+    curl -s http://127.0.0.1:8765 > /dev/null 2>&1 && break
+    if ! kill -0 $WHISPER_PID 2>/dev/null; then
+      echo "Whisper server crashato. Log:"
+      tail -20 /tmp/whisper_server.log
+      break
+    fi
+  done
+  echo "Whisper server pronto."
+else
+  echo "Whisper server già in ascolto."
+fi
+
 echo "Avvio backend Node.js..."
 cd "$DIR/backend"
 exec node index.js
