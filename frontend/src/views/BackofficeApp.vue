@@ -33,6 +33,7 @@
 
         <button class="btn-testo" :class="{ active: textInputOpen }" @click="textInputOpen = !textInputOpen" title="Aggiungi nota testuale">📝</button>
         <button class="btn-refresh" @click="loadNotes">↻</button>
+        <button class="btn-8bit" @click="toggle8bit" :title="pixel8bit ? 'Modalità normale' : 'Modalità 8-bit'">{{ pixel8bit ? '🖥️' : '👾' }}</button>
       </div>
     </header>
 
@@ -1107,7 +1108,18 @@ async function importNotes(e) {
   }
 }
 
-onMounted(() => { loadNotes(); });
+const pixel8bit = ref(localStorage.getItem('mode-8bit') === '1');
+
+function toggle8bit() {
+  pixel8bit.value = !pixel8bit.value;
+  document.body.classList.toggle('mode-8bit', pixel8bit.value);
+  localStorage.setItem('mode-8bit', pixel8bit.value ? '1' : '0');
+}
+
+onMounted(() => {
+  loadNotes();
+  if (pixel8bit.value) document.body.classList.add('mode-8bit');
+});
 onUnmounted(() => clearInterval(pollInterval));
 </script>
 
@@ -1145,6 +1157,8 @@ onUnmounted(() => clearInterval(pollInterval));
 .testo-actions { display: flex; align-items: center; gap: 8px; }
 .testo-hint { font-size: 12px; color: #c7c7cc; margin-left: 4px; }
 .btn-refresh { padding: 8px 12px; border: 1px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 16px; cursor: pointer; }
+.btn-8bit { padding: 8px 12px; border: 1px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 18px; cursor: pointer; transition: transform 0.1s; }
+.btn-8bit:hover { transform: scale(1.15); background: #f5f5f7; }
 
 .sel-badge { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #e8f0ff; color: #5856d6; border-radius: 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .sel-clear { background: none; border: none; cursor: pointer; color: #5856d6; font-size: 14px; padding: 0; line-height: 1; }
@@ -1455,4 +1469,147 @@ tr:hover .btn-edit { opacity: 1; }
 .spec-key { font-size: 13px; color: #8e8e93; white-space: nowrap; }
 .spec-val { font-size: 13px; color: #1d1d1f; font-weight: 600; }
 
+</style>
+
+<style>
+/* ── 8-BIT MODE ─────────────────────────────────────── */
+body.mode-8bit, body.mode-8bit * {
+  font-family: 'Press Start 2P', monospace !important;
+  border-radius: 0 !important;
+  image-rendering: pixelated;
+  transition: none !important;
+}
+
+/* Scanlines overlay */
+body.mode-8bit::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px);
+  pointer-events: none;
+  z-index: 99997;
+}
+
+body.mode-8bit { background: #080808 !important; color: #00ff41 !important; cursor: crosshair; }
+
+/* Layout */
+body.mode-8bit .bo { background: #080808 !important; color: #00ff41 !important; }
+body.mode-8bit .bo-header { background: #0d0d0d !important; border-bottom: 3px solid #00ff41 !important; box-shadow: 0 3px 0 #004d14 !important; }
+body.mode-8bit .bo-header h1 { font-size: 9px !important; color: #00ff41 !important; text-shadow: 2px 2px 0 #004d14 !important; letter-spacing: 1px !important; }
+body.mode-8bit .tab-bar { background: #0d0d0d !important; border-bottom: 3px solid #00ff41 !important; padding-bottom: 0 !important; }
+body.mode-8bit .tab-btn { color: #1a6b2e !important; font-size: 6px !important; letter-spacing: 0 !important; }
+body.mode-8bit .tab-btn.active { color: #00ff41 !important; border-bottom: 3px solid #00ff41 !important; }
+body.mode-8bit .tab-btn:hover:not(.active) { color: #00ff41 !important; background: #001400 !important; }
+
+/* Inputs */
+body.mode-8bit input, body.mode-8bit textarea, body.mode-8bit select {
+  background: #0d0d0d !important; color: #00ff41 !important;
+  border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important;
+  font-size: 7px !important; outline: none !important;
+}
+body.mode-8bit input:focus, body.mode-8bit textarea:focus {
+  border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important;
+}
+body.mode-8bit input::placeholder, body.mode-8bit textarea::placeholder { color: #1a6b2e !important; }
+
+/* All buttons base */
+body.mode-8bit button {
+  background: #0d0d0d !important; color: #00ff41 !important;
+  border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important;
+  font-size: 7px !important; cursor: pointer !important;
+}
+body.mode-8bit button:hover:not(:disabled) {
+  background: #00ff41 !important; color: #080808 !important;
+  box-shadow: none !important; transform: translate(3px, 3px) !important;
+}
+body.mode-8bit button:disabled { opacity: 0.35 !important; }
+
+/* Primary action buttons */
+body.mode-8bit .btn-pulisci, body.mode-8bit .btn-analisi {
+  background: #ff00ff !important; color: #080808 !important;
+  border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important;
+}
+body.mode-8bit .btn-pulisci:hover, body.mode-8bit .btn-analisi:hover {
+  background: #0d0d0d !important; color: #ff00ff !important;
+}
+body.mode-8bit .btn-analisi-arrow {
+  background: #cc00cc !important; border-color: #ff00ff !important;
+  box-shadow: 3px 3px 0 #660066 !important; color: #080808 !important;
+}
+body.mode-8bit .btn-save {
+  background: #00ff41 !important; color: #080808 !important;
+  border-color: #00ff41 !important;
+}
+
+/* Panels */
+body.mode-8bit .analisi-panel, body.mode-8bit .testo-panel {
+  background: #0a0a0a !important; border-bottom: 2px solid #00ff41 !important;
+}
+body.mode-8bit .analisi-dropdown {
+  background: #0d0d0d !important; border: 2px solid #00ff41 !important;
+  box-shadow: 4px 4px 0 #004d14 !important;
+}
+body.mode-8bit .analisi-dropdown button { color: #00ff41 !important; font-size: 7px !important; border-top: 1px solid #004d14 !important; }
+body.mode-8bit .analisi-dropdown button:hover { background: #001400 !important; color: #00ff41 !important; transform: none !important; box-shadow: none !important; }
+
+/* Table */
+body.mode-8bit .notes-table-wrap { background: #080808 !important; }
+body.mode-8bit table { background: #080808 !important; }
+body.mode-8bit th { background: #001400 !important; color: #00ff41 !important; font-size: 7px !important; border: 1px solid #004d14 !important; letter-spacing: 0 !important; }
+body.mode-8bit td { background: #080808 !important; color: #00ff41 !important; font-size: 7px !important; border: 1px solid #001400 !important; }
+body.mode-8bit tbody tr:hover td { background: #001400 !important; }
+body.mode-8bit tbody tr.selected td { background: #002600 !important; }
+body.mode-8bit .note-text { color: #00ff41 !important; font-size: 7px !important; line-height: 1.8 !important; }
+body.mode-8bit .note-text-clean { color: #00e5ff !important; }
+body.mode-8bit .badge-status { background: #001400 !important; color: #00ff41 !important; border: 1px solid #00ff41 !important; font-size: 6px !important; }
+body.mode-8bit .badge-sentiment { background: #0d0d0d !important; border: 1px solid #004d14 !important; font-size: 6px !important; }
+body.mode-8bit .sintesi-text { color: #00e5ff !important; font-size: 7px !important; }
+
+/* Archive */
+body.mode-8bit .archive-list { background: #080808 !important; }
+body.mode-8bit .archive-item { background: #0d0d0d !important; border: 2px solid #004d14 !important; box-shadow: 3px 3px 0 #004d14 !important; }
+body.mode-8bit .archive-item:hover, body.mode-8bit .archive-item.active { border-color: #00ff41 !important; box-shadow: 3px 3px 0 #00ff41 !important; background: #001400 !important; }
+body.mode-8bit .archive-title { color: #00ff41 !important; font-size: 7px !important; }
+body.mode-8bit .archive-date { color: #1a6b2e !important; font-size: 6px !important; }
+body.mode-8bit .recap-panel { background: #0a0a0a !important; }
+body.mode-8bit .recap-section { background: #0d0d0d !important; border: 2px solid #004d14 !important; box-shadow: 3px 3px 0 #004d14 !important; }
+body.mode-8bit .recap-section-title { color: #ff00ff !important; font-size: 7px !important; }
+
+/* Chat */
+body.mode-8bit .chat-panel { background: #080808 !important; border-top: 2px solid #00ff41 !important; }
+body.mode-8bit .chat-messages { background: #080808 !important; }
+body.mode-8bit .bubble-user { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important; font-size: 7px !important; }
+body.mode-8bit .bubble-ai { background: #00001a !important; color: #00e5ff !important; border: 2px solid #00e5ff !important; box-shadow: 3px 3px 0 #003366 !important; font-size: 7px !important; }
+body.mode-8bit .chat-mode-pills { background: #0d0d0d !important; border-bottom: 2px solid #00ff41 !important; }
+body.mode-8bit .pill { background: #0d0d0d !important; color: #1a6b2e !important; border: 2px solid #004d14 !important; font-size: 6px !important; }
+body.mode-8bit .pill.active { background: #00ff41 !important; color: #080808 !important; border-color: #00ff41 !important; box-shadow: 2px 2px 0 #004d14 !important; }
+body.mode-8bit .chat-input-row { background: #0d0d0d !important; border-top: 2px solid #00ff41 !important; }
+body.mode-8bit .chat-send { background: #ff00ff !important; color: #080808 !important; border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important; }
+
+/* Modals */
+body.mode-8bit .modal-overlay { background: rgba(0, 0, 0, 0.85) !important; }
+body.mode-8bit .modal-box { background: #0d0d0d !important; border: 3px solid #00ff41 !important; box-shadow: 6px 6px 0 #004d14 !important; color: #00ff41 !important; }
+body.mode-8bit .modal-box h3, body.mode-8bit .modal-title { color: #ff00ff !important; font-size: 9px !important; }
+body.mode-8bit .modal-actions button, body.mode-8bit .modal-footer button { font-size: 7px !important; }
+body.mode-8bit .confirm-btn-ok { background: #ff00ff !important; color: #080808 !important; border-color: #ff00ff !important; }
+
+/* Power badge */
+body.mode-8bit .power-badge { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important; font-size: 6px !important; }
+
+/* Sel badge */
+body.mode-8bit .sel-badge { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; font-size: 6px !important; }
+
+/* Log panel */
+body.mode-8bit .log-panel { background: #020c02 !important; border: 2px solid #00ff41 !important; color: #00ff41 !important; }
+body.mode-8bit .log-line { color: #00aa28 !important; font-size: 6px !important; }
+body.mode-8bit .streaming-text { color: #00e5ff !important; font-size: 7px !important; }
+
+/* Scrollbars */
+body.mode-8bit ::-webkit-scrollbar { width: 8px; background: #080808; }
+body.mode-8bit ::-webkit-scrollbar-thumb { background: #00ff41; }
+body.mode-8bit ::-webkit-scrollbar-track { background: #001400; }
+
+/* Blinking cursor effect on active elements */
+body.mode-8bit input:focus::after { content: '▮'; animation: blink8 1s step-end infinite; }
+@keyframes blink8 { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 </style>
