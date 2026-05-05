@@ -290,7 +290,9 @@
                         <span v-if="nota.status === 'in_elaborazione'" class="muted">In trascrizione...</span>
                         <span v-else-if="!nota.testo" class="muted">
                           Nessun testo trascritto.
-                          <button v-if="nota.filename" class="btn-retranscribe" @click.stop="retranscribe(nota)">🔄 Rielabora</button>
+                          <button v-if="nota.filename" class="btn-retranscribe" :disabled="retranscribingIds.has(nota.id)" @click.stop="retranscribe(nota)">
+                            {{ retranscribingIds.has(nota.id) ? '⏳ Avvio...' : '🔄 Rielabora' }}
+                          </button>
                         </span>
                         <button v-if="nota.testo" class="btn-expand" @click.stop="toggleExpand(nota.id)">
                           {{ expandedIds.has(nota.id) ? 'mostra meno ▲' : 'mostra tutto ▼' }}
@@ -1042,9 +1044,16 @@ function buildCalendarUrl(ev) {
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
 
+const retranscribingIds = ref(new Set());
+
 async function retranscribe(nota) {
+  retranscribingIds.value = new Set([...retranscribingIds.value, nota.id]);
   await apiFetch(`/api/notes/${nota.id}/retranscribe`, { method: "POST" });
-  await loadNotes();
+  notes.value = notes.value.map((n) =>
+    n.id === nota.id ? { ...n, status: "in_elaborazione", testo: null } : n
+  );
+  retranscribingIds.value = new Set([...retranscribingIds.value].filter((id) => id !== nota.id));
+  if (!pollInterval) pollInterval = setInterval(() => loadNotes(false), 3000);
 }
 
 async function addTextNote() {
