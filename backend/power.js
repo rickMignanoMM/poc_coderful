@@ -7,29 +7,42 @@ function readRaplUj() {
   try { return parseInt(fs.readFileSync(RAPL_ENERGY, "utf8")); } catch { return null; }
 }
 
-let _jetsonPath = undefined;
-function findJetsonPowerPath() {
-  if (_jetsonPath !== undefined) return _jetsonPath;
+let _jetsonSensor = undefined;
+function findJetsonSensor() {
+  if (_jetsonSensor !== undefined) return _jetsonSensor;
   try {
     for (const hw of fs.readdirSync("/sys/class/hwmon")) {
       const base = `/sys/class/hwmon/${hw}`;
       try {
         const name = fs.readFileSync(`${base}/name`, "utf8").trim();
         if (/ina|tegra/i.test(name)) {
+          // INA3221: no power*_input, compute V*I from in1/curr1 (VDD_IN rail)
+          if (fs.existsSync(`${base}/in1_input`) && fs.existsSync(`${base}/curr1_input`)) {
+            _jetsonSensor = { type: "ina3221", base };
+            return _jetsonSensor;
+          }
+          // Older Tegra: direct power*_input
           const f = fs.readdirSync(base).find((x) => /^power\d+_input$/.test(x));
-          if (f) { _jetsonPath = `${base}/${f}`; return _jetsonPath; }
+          if (f) { _jetsonSensor = { type: "power", path: `${base}/${f}` }; return _jetsonSensor; }
         }
       } catch {}
     }
   } catch {}
-  _jetsonPath = null;
+  _jetsonSensor = null;
   return null;
 }
 
 function readJetsonMw() {
-  const p = findJetsonPowerPath();
-  if (!p) return null;
-  try { return parseInt(fs.readFileSync(p, "utf8")); } catch { return null; }
+  const s = findJetsonSensor();
+  if (!s) return null;
+  try {
+    if (s.type === "ina3221") {
+      const mv = parseInt(fs.readFileSync(`${s.base}/in1_input`, "utf8"));
+      const ma = parseInt(fs.readFileSync(`${s.base}/curr1_input`, "utf8"));
+      return mv * ma / 1000; // mW
+    }
+    return parseInt(fs.readFileSync(s.path, "utf8")); // already mW
+  } catch { return null; }
 }
 
 class PowerSampler {

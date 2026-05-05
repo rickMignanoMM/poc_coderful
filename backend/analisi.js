@@ -94,6 +94,7 @@ async function llamaChat(messages, onStream) {
   let fullContent = "";
   let evalCount = 0;
   let tokPerSec = 0;
+  let firstTokenTime = null;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
@@ -111,7 +112,11 @@ async function llamaChat(messages, onStream) {
       try {
         const chunk = JSON.parse(data);
         const delta = chunk.choices?.[0]?.delta?.content;
-        if (delta) { fullContent += delta; if (onStream) onStream(fullContent); }
+        if (delta) {
+          if (!firstTokenTime) firstTokenTime = Date.now();
+          fullContent += delta;
+          if (onStream) onStream(fullContent);
+        }
         // llama.cpp: timings in final chunk
         if (chunk.timings?.predicted_n) {
           evalCount = chunk.timings.predicted_n;
@@ -121,6 +126,12 @@ async function llamaChat(messages, onStream) {
         if (chunk.usage?.completion_tokens) evalCount = chunk.usage.completion_tokens;
       } catch {}
     }
+  }
+
+  // Fallback per Ollama (no timings field): calcola da tempo elapsed
+  if (tokPerSec === 0 && evalCount > 0 && firstTokenTime) {
+    const elapsed = (Date.now() - firstTokenTime) / 1000;
+    if (elapsed > 0) tokPerSec = evalCount / elapsed;
   }
 
   return { content: fullContent.trim(), evalCount, tokPerSec };
