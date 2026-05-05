@@ -252,6 +252,16 @@ app.post("/api/notes/testo", (req, res) => {
   res.json({ ok: true, id: note.id });
 });
 
+app.post("/api/notes/import", (req, res) => {
+  const incoming = req.body;
+  if (!Array.isArray(incoming)) return res.status(400).json({ error: "Formato non valido" });
+  const existing = readNotes();
+  const existingIds = new Set(existing.map((n) => n.id));
+  const added = incoming.filter((n) => n.id && n.testo && !existingIds.has(n.id));
+  saveNotes([...added, ...existing]);
+  res.json({ ok: true, imported: added.length });
+});
+
 app.delete("/api/notes/:id", (req, res) => {
   const notes = readNotes();
   const note = notes.find((n) => n.id === req.params.id);

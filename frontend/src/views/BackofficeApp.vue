@@ -4,6 +4,9 @@
       <h1>📋 Backoffice Note Audio</h1>
       <div class="header-right">
         <input v-model="search" class="search" placeholder="Cerca nelle trascrizioni..." />
+        <button class="btn-io" @click="exportNotes" title="Esporta note">⬇ Export</button>
+        <button class="btn-io" @click="$refs.importInput.click()" title="Importa note">⬆ Import</button>
+        <input ref="importInput" type="file" accept=".json" style="display:none" @change="importNotes" />
         <button class="btn-pulisci" :disabled="cleanupLoading || analysisLoading" @click="startCleanup">
           {{ cleanupLoading ? "⏳ Pulizia in corso..." : "✨ Sistema note" }}
         </button>
@@ -1031,6 +1034,39 @@ async function addTextNote() {
   await loadNotes();
 }
 
+async function exportNotes() {
+  const res = await apiFetch("/api/notes");
+  const notes = await res.json();
+  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `note-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importNotes(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = "";
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const res = await apiFetch("/api/notes/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const { imported } = await res.json();
+    await loadNotes();
+    if (imported === 0) alert("Nessuna nota nuova da importare.");
+    else alert(`${imported} note importate.`);
+  } catch {
+    alert("Errore durante l'importazione. Verifica il formato del file.");
+  }
+}
+
 onMounted(() => { loadNotes(); });
 onUnmounted(() => clearInterval(pollInterval));
 </script>
@@ -1047,6 +1083,8 @@ onUnmounted(() => clearInterval(pollInterval));
 
 .btn-pulisci { padding: 8px 16px; background: #34c759; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn-pulisci:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-io { padding: 8px 14px; background: #f2f2f7; color: #3a3a3c; border: 1px solid #e5e5ea; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn-io:hover { background: #e5e5ea; }
 
 .analisi-split { position: relative; display: flex; }
 .btn-analisi { padding: 8px 14px; background: #5856d6; color: #fff; border: none; border-radius: 10px 0 0 10px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
