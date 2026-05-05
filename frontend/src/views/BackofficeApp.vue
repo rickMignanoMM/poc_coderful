@@ -15,7 +15,7 @@
 
         <div v-if="selectedIds.size > 0" class="sel-badge">
           {{ selectedIds.size }} selezionat{{ selectedIds.size === 1 ? 'a' : 'e' }}
-          <button class="sel-clear" @click="selectedIds.clear(); selectedIds = new Set(selectedIds)">✕</button>
+          <button class="sel-clear" @click="clearSelection">✕</button>
         </div>
 
         <div class="analisi-split" v-click-outside="() => analysisMenuOpen = false">
@@ -59,158 +59,37 @@
     <nav class="tab-bar">
       <button :class="['tab-btn', { active: activeTab === 'note' }]" @click="activeTab = 'note'">📋 Note</button>
       <button :class="['tab-btn', { active: activeTab === 'stats' }]" @click="activeTab = 'stats'">📊 Stats</button>
-      <button :class="['tab-btn', { active: activeTab === 'archivio' }]" @click="activeTab = 'archivio'; loadArchive()">📁 Archivio</button>
+      <button :class="['tab-btn', { active: activeTab === 'archivio' }]" @click="openArchiveTab">📁 Archivio</button>
       <button :class="['tab-btn', { active: activeTab === 'chat' }]" @click="activeTab = 'chat'">💬 Chat</button>
     </nav>
 
     <transition name="slide">
-      <div v-if="analysis" class="analisi-panel">
-        <div class="analisi-header">
-          <div class="analisi-header-left">
-            <span>🤖 Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
-            <span v-if="analysis.power" class="power-badge" :title="`${analysis.power.joules} J totali`">
-              ⚡ {{ analysis.power.watts }} W · {{ analysis.power.tokPerSec }} tok/s · {{ analysis.power.elapsed }}s
-            </span>
-          </div>
-          <div class="analisi-header-actions">
-            <button class="btn-collapse-panel" @click="analysisCollapsed = !analysisCollapsed">
-              {{ analysisCollapsed ? '▼ Espandi' : '▲ Riduci' }}
-            </button>
-            <button class="close-btn" @click="analysis = null">✕</button>
-          </div>
-        </div>
-
-        <div v-show="!analysisCollapsed" class="analisi-cards">
-
-          <!-- EVENTI -->
-          <div v-if="analysis.eventi" class="acard">
-            <h3>📅 Eventi & Task</h3>
-            <div v-if="!analysis.eventi?.eventi?.length" class="acard-empty">Nessun evento rilevato</div>
-            <div v-else class="eventi-list">
-              <div v-for="(ev, idx) in analysis.eventi.eventi" :key="idx" class="evento">
-                <template v-if="editingEventIdx === idx">
-                  <input v-model="editingEvent.titolo" class="ev-input" placeholder="Titolo" />
-                  <input v-model="editingEvent.data" class="ev-input" placeholder="Data (es. 15 maggio 2026 ore 10:00)" />
-                  <input v-model="editingEvent.contesto" class="ev-input" placeholder="Contesto" />
-                  <select v-model="editingEvent.priorita" class="ev-select">
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="bassa">Bassa</option>
-                  </select>
-                  <div class="ev-edit-actions">
-                    <button class="btn-save" @click="saveEventEdit">✓ Salva</button>
-                    <button class="btn-cancel" @click="cancelEventEdit">Annulla</button>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="evento-header">
-                    <span class="evento-titolo">{{ ev.titolo }}</span>
-                    <div class="evento-header-right">
-                      <span class="badge-prio" :class="ev.priorita">{{ ev.priorita }}</span>
-                      <button class="btn-ev-edit" @click="startEventEdit(ev, idx)" title="Modifica">✏️</button>
-                      <a :href="buildCalendarUrl(ev)" target="_blank" rel="noopener" class="btn-gcal" title="Aggiungi a Google Calendar">📅</a>
-                    </div>
-                  </div>
-                  <div v-if="ev.data" class="evento-meta">📆 {{ ev.data }}</div>
-                  <div v-if="ev.contesto" class="evento-meta">{{ ev.contesto }}</div>
-                </template>
-              </div>
-            </div>
-          </div>
-
-          <!-- RIASSUNTO -->
-          <div v-if="analysis.riassunto" class="acard">
-            <div class="acard-title-row">
-              <h3>📊 Riassunto</h3>
-              <button v-if="!editingSummary" class="btn-acard-edit" @click="startSummaryEdit">✏️</button>
-            </div>
-            <template v-if="editingSummary">
-              <div class="rv-field"><label>Contesto</label><input v-model="editingSummaryVal.contesto" class="ev-input" /></div>
-              <div class="rv-field"><label>Tono</label><input v-model="editingSummaryVal.tono" class="ev-input" /></div>
-              <div class="rv-field"><label>Argomenti (uno per riga)</label><textarea v-model="editingSummaryVal.argomenti" class="ev-input rv-textarea" rows="3" /></div>
-              <div class="rv-field"><label>Sintesi</label><textarea v-model="editingSummaryVal.sintesi" class="ev-input rv-textarea" rows="3" /></div>
-              <div class="ev-edit-actions">
-                <button class="btn-save" @click="saveSummary">✓ Salva</button>
-                <button class="btn-cancel" @click="editingSummary = false">Annulla</button>
-              </div>
-            </template>
-            <template v-else>
-              <div class="riassunto">
-                <div class="riassunto-row"><strong>Contesto:</strong> {{ analysis.riassunto?.contesto }}</div>
-                <div class="riassunto-row"><strong>Tono:</strong> {{ analysis.riassunto?.tono }}</div>
-                <div class="riassunto-row">
-                  <strong>Argomenti:</strong>
-                  <div class="tags">
-                    <span v-for="a in analysis.riassunto?.argomenti" :key="a" class="tag">{{ a }}</span>
-                  </div>
-                </div>
-                <div class="riassunto-row sintesi">{{ analysis.riassunto?.sintesi }}</div>
-              </div>
-            </template>
-          </div>
-
-          <!-- SUGGERIMENTI -->
-          <div v-if="analysis.suggerimenti" class="acard">
-            <h3>💡 Suggerimenti</h3>
-            <div v-if="!analysis.suggerimenti?.suggerimenti?.length" class="acard-empty">Nessun suggerimento</div>
-            <div v-else class="suggerimenti-list">
-              <div v-for="(s, idx) in analysis.suggerimenti.suggerimenti" :key="idx" class="suggerimento">
-                <template v-if="editingSuggestionIdx === idx">
-                  <input v-model="editingSuggestion.titolo" class="ev-input" placeholder="Titolo" />
-                  <textarea v-model="editingSuggestion.descrizione" class="ev-input rv-textarea" rows="2" placeholder="Descrizione" />
-                  <select v-model="editingSuggestion.priorita" class="ev-select">
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="bassa">Bassa</option>
-                  </select>
-                  <div class="ev-edit-actions">
-                    <button class="btn-save" @click="saveSuggestion">✓ Salva</button>
-                    <button class="btn-cancel" @click="editingSuggestionIdx = null">Annulla</button>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="sug-header">
-                    <span class="sug-titolo">{{ s.titolo }}</span>
-                    <div style="display:flex;gap:6px;align-items:center">
-                      <span class="badge-prio" :class="s.priorita">{{ s.priorita }}</span>
-                      <button class="btn-ev-edit" @click="startSuggestionEdit(s, idx)">✏️</button>
-                    </div>
-                  </div>
-                  <div class="sug-desc">{{ s.descrizione }}</div>
-                </template>
-              </div>
-            </div>
-          </div>
-
-          <!-- CONNESSIONI -->
-          <div v-if="analysis.connessioni" class="acard acard-full">
-            <h3>🔗 Connessioni tematiche</h3>
-            <div v-if="!analysis.connessioni?.connessioni?.length" class="acard-empty">Nessuna connessione significativa rilevata</div>
-            <div v-else class="connessioni-list">
-              <div v-for="(c, idx) in analysis.connessioni.connessioni" :key="idx" class="connessione">
-                <template v-if="editingConnectionIdx === idx">
-                  <div class="rv-field"><label>Tema</label><input v-model="editingConnection.tema" class="ev-input" /></div>
-                  <div class="rv-field"><label>Descrizione</label><textarea v-model="editingConnection.descrizione" class="ev-input rv-textarea" rows="2" /></div>
-                  <div class="rv-field"><label>Note collegate (una per riga)</label><textarea v-model="editingConnection.note" class="ev-input rv-textarea" rows="2" /></div>
-                  <div class="ev-edit-actions">
-                    <button class="btn-save" @click="saveConnection">✓ Salva</button>
-                    <button class="btn-cancel" @click="editingConnectionIdx = null">Annulla</button>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="conn-header">
-                    <div class="conn-tema">{{ c.tema }}</div>
-                    <button class="btn-ev-edit" @click="startConnectionEdit(c, idx)">✏️</button>
-                  </div>
-                  <div class="conn-desc">{{ c.descrizione }}</div>
-                  <div v-if="c.note?.length" class="conn-note">{{ c.note.join(" · ") }}</div>
-                </template>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
+      <BackofficeAnalysisPanel
+        v-if="analysis"
+        v-model:editing-event-idx="editingEventIdx"
+        v-model:editing-event="editingEvent"
+        v-model:editing-summary="editingSummary"
+        v-model:editing-summary-val="editingSummaryVal"
+        v-model:editing-suggestion-idx="editingSuggestionIdx"
+        v-model:editing-suggestion="editingSuggestion"
+        v-model:editing-connection-idx="editingConnectionIdx"
+        v-model:editing-connection="editingConnection"
+        :analysis="analysis"
+        :collapsed="analysisCollapsed"
+        :format-date="formatDate"
+        :build-calendar-url="buildCalendarUrl"
+        :start-summary-edit="startSummaryEdit"
+        :save-summary="saveSummary"
+        :start-event-edit="startEventEdit"
+        :save-event-edit="saveEventEdit"
+        :cancel-event-edit="cancelEventEdit"
+        :start-suggestion-edit="startSuggestionEdit"
+        :save-suggestion="saveSuggestion"
+        :start-connection-edit="startConnectionEdit"
+        :save-connection="saveConnection"
+        @toggle-collapsed="analysisCollapsed = !analysisCollapsed"
+        @close="analysis = null"
+      />
     </transition>
 
     <div v-if="isAnyLoading || activeLogs.length || activeStreaming" ref="logPanel" class="log-panel">
@@ -231,86 +110,30 @@
     <div v-if="analysisError" class="error-bar">⚠️ {{ analysisError }}</div>
 
     <!-- NOTE LIST -->
-    <main v-if="activeTab === 'note'" class="bo-main">
-      <div v-if="loading" class="empty">Caricamento...</div>
-      <div v-else-if="groupedByDay.length === 0" class="empty">Nessuna nota trovata.</div>
-      <template v-else>
-        <div class="note-toolbar">
-          <label class="select-all-label">
-            <input type="checkbox" class="cb" :checked="allSelected" :indeterminate.prop="someSelected" @change="toggleAll" />
-            Seleziona tutto
-          </label>
-        </div>
-        <div class="giorni-list">
-          <div v-for="gruppo in groupedByDay" :key="gruppo.dayKey" class="giorno-accordion">
-            <button
-              class="giorno-header"
-              :class="{ open: openDays.has(gruppo.dayKey) }"
-              @click="toggleDay(gruppo.dayKey)"
-            >
-              <span class="giorno-chevron" :class="{ open: openDays.has(gruppo.dayKey) }">›</span>
-              <span class="giorno-label">{{ gruppo.dayLabel }}</span>
-              <span class="giorno-count">{{ gruppo.notes.length }} {{ gruppo.notes.length !== 1 ? 'note' : 'nota' }}</span>
-            </button>
-            <div v-show="openDays.has(gruppo.dayKey)" class="giorno-body">
-              <div
-                v-for="nota in gruppo.notes"
-                :key="nota.id"
-                class="nota-card"
-                :class="{ pending: nota.status === 'in_elaborazione', selected: selectedIds.has(nota.id) }"
-              >
-                <div class="card-head">
-                  <div class="card-head-left">
-                    <input type="checkbox" class="cb" :checked="selectedIds.has(nota.id)" @change="toggleSelect(nota.id)" />
-                    <span class="card-time">{{ formatTime(nota.createdAt) }}</span>
-                    <span class="badge" :class="nota.status">{{ nota.status === 'completata' ? '✓ Fatto' : '⏳ In corso' }}</span>
-                    <span v-if="nota.sentiment?.emoji" class="sent-emoji" :title="nota.sentiment?.tono">{{ nota.sentiment.emoji }}</span>
-                  </div>
-                  <button class="btn-delete" @click="deleteNote(nota.id)">✕</button>
-                </div>
-                <div v-if="nota.filename" class="card-audio">
-                  <audio :src="mediaUrl(`/audio/${nota.filename}`)" controls />
-                </div>
-                <div class="card-text">
-                  <template v-if="editingId === nota.id">
-                    <textarea
-                      v-model="editingText"
-                      class="edit-textarea"
-                      @keydown.escape="cancelEdit"
-                      rows="3"
-                      autofocus
-                    />
-                    <div class="edit-actions">
-                      <button class="btn-save" @click="saveEdit(nota)">✓ Salva</button>
-                      <button class="btn-cancel" @click="cancelEdit">Annulla</button>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div class="text-row">
-                      <span>
-                        <span v-if="nota.testo_pulito" class="label-pulito">✨</span>
-                        <span :class="{ 'text-clamped': !expandedIds.has(nota.id) }">{{ nota.testo_pulito || nota.testo || '' }}</span>
-                        <span v-if="nota.status === 'in_elaborazione'" class="muted">In trascrizione...</span>
-                        <span v-else-if="!nota.testo" class="muted">
-                          Nessun testo trascritto.
-                          <button v-if="nota.filename" class="btn-retranscribe" :disabled="retranscribingIds.has(nota.id)" @click.stop="retranscribe(nota)">
-                            {{ retranscribingIds.has(nota.id) ? '⏳ Avvio...' : '🔄 Rielabora' }}
-                          </button>
-                        </span>
-                        <button v-if="nota.testo" class="btn-expand" @click.stop="toggleExpand(nota.id)">
-                          {{ expandedIds.has(nota.id) ? 'mostra meno ▲' : 'mostra tutto ▼' }}
-                        </button>
-                      </span>
-                      <button v-if="nota.testo" class="btn-edit" @click="startEdit(nota)">✏️</button>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-    </main>
+    <BackofficeNotesTab
+      v-if="activeTab === 'note'"
+      v-model:editing-text="editingText"
+      :loading="loading"
+      :grouped-by-day="groupedByDay"
+      :open-days="openDays"
+      :all-selected="allSelected"
+      :some-selected="someSelected"
+      :selected-ids="selectedIds"
+      :editing-id="editingId"
+      :expanded-ids="expandedIds"
+      :retranscribing-ids="retranscribingIds"
+      :format-time="formatTime"
+      :media-url="mediaUrl"
+      :toggle-all="toggleAll"
+      :toggle-day="toggleDay"
+      :toggle-select="toggleSelect"
+      :delete-note="deleteNote"
+      :cancel-edit="cancelEdit"
+      :save-edit="saveEdit"
+      :start-edit="startEdit"
+      :toggle-expand="toggleExpand"
+      :retranscribe="retranscribe"
+    />
 
     <!-- STATS -->
     <main v-else-if="activeTab === 'stats'" class="stats-main">
@@ -500,19 +323,32 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import BackofficeAnalysisPanel from "../components/backoffice/BackofficeAnalysisPanel.vue";
+import BackofficeNotesTab from "../components/backoffice/BackofficeNotesTab.vue";
 import DeviceBadge from "../components/DeviceBadge.vue";
+import { useJobPoller } from "../composables/useJobPoller.js";
+import { useNotesCollection } from "../composables/useNotesCollection.js";
 import { useApi } from "../composables/useApi.js";
+import { buildStats, buildCalendarUrl, filterNotes, groupNotesByDay, RECAP_SECTIONS, TYPE_LABELS } from "../utils/backoffice.js";
+import { formatDateTime, formatTimeOnly } from "../utils/dateTime.js";
 
 const { apiFetch, mediaUrl } = useApi();
+const { pollJob } = useJobPoller(apiFetch);
+const {
+  notes,
+  loading,
+  loadNotes,
+  removeNote,
+  updateNote,
+  startPolling,
+} = useNotesCollection(apiFetch);
 
 const confirmModal = ref({ visible: false, message: "", onConfirm: () => {} });
 function showConfirmModal(message, onConfirm) {
   confirmModal.value = { visible: true, message, onConfirm };
 }
 
-const notes = ref([]);
-const loading = ref(true);
 const search = ref("");
 const editingId = ref(null);
 const editingText = ref("");
@@ -553,6 +389,11 @@ const analysisStreaming = ref("");
 const chatStreaming = ref("");
 const chatMode = ref("free");
 const recapSection = ref("tutti");
+const pixel8bit = ref(localStorage.getItem("mode-8bit") === "1");
+const retranscribingIds = ref(new Set());
+const openDays = ref(new Set());
+
+const recapSections = RECAP_SECTIONS;
 
 function setChatMode(mode) {
   if (mode === chatMode.value) return;
@@ -560,13 +401,6 @@ function setChatMode(mode) {
   chatMessages.value = [];
   chatHistory.value = [];
 }
-const recapSections = [
-  { key: "tutti",         label: "Tutto" },
-  { key: "riassunto",    label: "📊 Riassunto" },
-  { key: "eventi",       label: "📅 Eventi" },
-  { key: "suggerimenti", label: "💡 Suggerimenti" },
-  { key: "connessioni",  label: "🔗 Connessioni" },
-];
 
 const vClickOutside = {
   mounted(el, binding) {
@@ -589,37 +423,7 @@ const activeStreaming = computed(() => {
 });
 
 const isAnyLoading = computed(() => analysisLoading.value || cleanupLoading.value || chatLoading.value);
-
-const stats = computed(() => {
-  const total = notes.value.length;
-  const completed = notes.value.filter((n) => n.status === "completata").length;
-  const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
-  const weekCount = notes.value.filter((n) => new Date(n.createdAt).getTime() > cutoff).length;
-
-  const perHour = Array(24).fill(0);
-  notes.value.forEach((n) => { perHour[new Date(n.createdAt).getHours()]++; });
-  const maxHour = Math.max(...perHour, 1);
-
-  const days = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
-  const dayCounts = Array(7).fill(0);
-  notes.value.forEach((n) => { dayCounts[new Date(n.createdAt).getDay()]++; });
-  const perDay = days.map((label, i) => ({ label, count: dayCounts[i] }));
-  const maxDay = Math.max(...dayCounts, 1);
-
-  const sentMap = {};
-  notes.value.forEach((n) => {
-    if (n.sentiment?.tono) {
-      const key = n.sentiment.tono;
-      sentMap[key] = sentMap[key] || { tono: key, emoji: n.sentiment.emoji || "😐", count: 0 };
-      sentMap[key].count++;
-    }
-  });
-  const sentimentList = Object.values(sentMap).sort((a, b) => b.count - a.count);
-  const hasSentiment = sentimentList.length > 0;
-  const sentimentTop = sentimentList[0] || { tono: "—", emoji: "😐" };
-
-  return { total, completed, weekCount, perHour, maxHour, perDay, maxDay, sentimentList, hasSentiment, sentimentTop };
-});
+const stats = computed(() => buildStats(notes.value));
 
 watch(activeTab, (tab) => {
   analysisCollapsed.value = tab === "chat";
@@ -632,8 +436,6 @@ watch(activeLogs, () => {
 watch(chatMessages, () => {
   nextTick(() => { if (chatScrollEl.value) chatScrollEl.value.scrollTop = chatScrollEl.value.scrollHeight; });
 }, { deep: true });
-
-let pollInterval = null;
 
 const completed = computed(() => filtered.value.filter((n) => n.status === "completata"));
 const allSelected = computed(() => completed.value.length > 0 && completed.value.every((n) => selectedIds.value.has(n.id)));
@@ -659,33 +461,12 @@ function toggleAll() {
   }
 }
 
-const filtered = computed(() => {
-  const q = search.value.toLowerCase();
-  return q ? notes.value.filter((n) =>
-    (n.testo_pulito || n.testo || "").toLowerCase().includes(q)
-  ) : notes.value;
-});
+function clearSelection() {
+  selectedIds.value = new Set();
+}
 
-const openDays = ref(new Set());
-
-const groupedByDay = computed(() => {
-  const groups = {};
-  const order = [];
-  filtered.value.forEach((n) => {
-    const d = new Date(n.createdAt);
-    const key = d.toISOString().slice(0, 10);
-    if (!groups[key]) {
-      groups[key] = {
-        dayKey: key,
-        dayLabel: d.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }),
-        notes: [],
-      };
-      order.push(key);
-    }
-    groups[key].notes.push(n);
-  });
-  return order.map((k) => groups[k]);
-});
+const filtered = computed(() => filterNotes(notes.value, search.value));
+const groupedByDay = computed(() => groupNotesByDay(filtered.value));
 
 watch(groupedByDay, (groups) => {
   if (groups.length > 0 && openDays.value.size === 0) {
@@ -699,48 +480,8 @@ function toggleDay(key) {
   openDays.value = s;
 }
 
-function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-}
-
-async function loadNotes(showLoading = true) {
-  if (showLoading) loading.value = true;
-  try {
-    const res = await apiFetch("/api/notes");
-    notes.value = await res.json();
-  } finally {
-    if (showLoading) loading.value = false;
-  }
-  const hasPending = notes.value.some((n) => n.status === "in_elaborazione");
-  if (!hasPending && pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-  else if (hasPending && !pollInterval) { pollInterval = setInterval(() => loadNotes(false), 4000); }
-}
-
-async function pollJob(jobId, onDone, onError, onLogs, onStream) {
-  return new Promise((resolve) => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await apiFetch(`/api/job/${jobId}`);
-        const job = await res.json();
-        if (onLogs && job.logs) onLogs(job.logs);
-        if (onStream && job.streaming !== undefined) onStream(job.streaming);
-        if (job.status === "completed") {
-          clearInterval(interval);
-          onDone(job.result);
-          resolve();
-        } else if (job.status === "failed") {
-          clearInterval(interval);
-          onError(job.error);
-          resolve();
-        }
-      } catch {
-        clearInterval(interval);
-        onError("Errore di rete");
-        resolve();
-      }
-    }, 1500);
-  });
-}
+const formatDate = formatDateTime;
+const formatTime = formatTimeOnly;
 
 async function startCleanup() {
   cleanupLoading.value = true;
@@ -751,10 +492,15 @@ async function startCleanup() {
     const { jobId } = await res.json();
     await pollJob(
       jobId,
-      async () => { analysisStreaming.value = ""; await loadNotes(); },
-      (err) => { analysisError.value = err; },
-      (logs) => { analysisLogs.value = logs; },
-      (text) => { analysisStreaming.value = text; }
+      {
+        onDone: async () => {
+          analysisStreaming.value = "";
+          await loadNotes();
+        },
+        onError: (err) => { analysisError.value = err; },
+        onLogs: (logs) => { analysisLogs.value = logs; },
+        onStream: (text) => { analysisStreaming.value = text; },
+      },
     );
   } catch (err) {
     analysisError.value = err.message;
@@ -781,10 +527,15 @@ async function startAnalysis(type = "tutto") {
     const { jobId } = await res.json();
     await pollJob(
       jobId,
-      (result) => { analysisStreaming.value = ""; analysis.value = result; },
-      (err) => { analysisError.value = err; },
-      (logs) => { analysisLogs.value = logs; },
-      (text) => { analysisStreaming.value = text; }
+      {
+        onDone: (result) => {
+          analysisStreaming.value = "";
+          analysis.value = result;
+        },
+        onError: (err) => { analysisError.value = err; },
+        onLogs: (logs) => { analysisLogs.value = logs; },
+        onStream: (text) => { analysisStreaming.value = text; },
+      },
     );
   } catch (err) {
     analysisError.value = err.message;
@@ -792,13 +543,6 @@ async function startAnalysis(type = "tutto") {
     analysisLoading.value = false;
     analysisStreaming.value = "";
   }
-}
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleString("it-IT", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
 }
 
 function startEdit(nota) {
@@ -818,15 +562,14 @@ async function saveEdit(nota) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ [field]: editingText.value }),
   });
-  const idx = notes.value.findIndex((n) => n.id === nota.id);
-  if (idx !== -1) notes.value[idx] = { ...notes.value[idx], [field]: editingText.value };
+  updateNote(nota.id, (note) => ({ ...note, [field]: editingText.value }), { sync: false });
   cancelEdit();
 }
 
 function deleteNote(id) {
   showConfirmModal("Vuoi eliminare questa nota? L'operazione non può essere annullata.", async () => {
     await apiFetch(`/api/notes/${id}`, { method: "DELETE" });
-    notes.value = notes.value.filter((n) => n.id !== id);
+    removeNote(id);
   });
 }
 
@@ -858,7 +601,7 @@ async function sendMessage() {
     const useRecap = chatMode.value === "recap" && analysis.value;
     const endpoint = useRecap ? "/api/chat-recap" : "/api/chat";
     const analysisContext = useRecap
-      ? (recapSection.value === "tutti" ? analysis.value : { [recapSection.value]: analysis.value[recapSection.value] })
+        ? (recapSection.value === "tutti" ? analysis.value : { [recapSection.value]: analysis.value[recapSection.value] })
       : null;
     const body = useRecap
       ? { question, history: chatHistory.value, analysis: analysisContext }
@@ -871,17 +614,21 @@ async function sendMessage() {
     const { jobId } = await res.json();
     await pollJob(
       jobId,
-      (result) => {
-        chatStreaming.value = "";
-        const reply = result.reply || "Nessuna risposta.";
-        const patch = result.patch || null;
-        if (patch) applyPatch(patch);
-        chatMessages.value.push({ role: "assistant", content: reply, patched: !!patch, notesUsed: result.notesUsed || 0 });
-        chatHistory.value.push({ user: question, assistant: reply });
+      {
+        onDone: (result) => {
+          chatStreaming.value = "";
+          const reply = result.reply || "Nessuna risposta.";
+          const patch = result.patch || null;
+          if (patch) applyPatch(patch);
+          chatMessages.value.push({ role: "assistant", content: reply, patched: !!patch, notesUsed: result.notesUsed || 0 });
+          chatHistory.value.push({ user: question, assistant: reply });
+        },
+        onError: (err) => {
+          chatMessages.value.push({ role: "assistant", content: `⚠️ Errore: ${err}` });
+        },
+        onLogs: (logs) => { chatLogs.value = logs; },
+        onStream: (text) => { chatStreaming.value = text; },
       },
-      (err) => { chatMessages.value.push({ role: "assistant", content: `⚠️ Errore: ${err}` }); },
-      (logs) => { chatLogs.value = logs; },
-      (text) => { chatStreaming.value = text; }
     );
   } catch (err) {
     chatMessages.value.push({ role: "assistant", content: `⚠️ Errore: ${err.message}` });
@@ -891,8 +638,9 @@ async function sendMessage() {
   }
 }
 
-const TYPE_LABEL = { eventi: "📅 Eventi", riassunto: "📊 Riassunto", suggerimenti: "💡 Suggerimenti", connessioni: "🔗 Connessioni" };
-function typeLabel(t) { return TYPE_LABEL[t] || t; }
+function typeLabel(type) {
+  return TYPE_LABELS[type] || type;
+}
 
 async function loadArchive() {
   archiveLoading.value = true;
@@ -927,6 +675,11 @@ function viewArchiveEntry(entry) {
   activeTab.value = "note";
 }
 
+async function openArchiveTab() {
+  activeTab.value = "archivio";
+  await loadArchive();
+}
+
 function deleteArchiveEntry(id) {
   showConfirmModal("Vuoi eliminare questo recap dall'archivio? L'operazione non può essere annullata.", async () => {
     await apiFetch(`/api/archivio/${id}`, { method: "DELETE" });
@@ -955,6 +708,14 @@ async function patchAnalysisArchive(fields) {
   if (idx !== -1) archive.value[idx] = { ...archive.value[idx], ...fields };
 }
 
+function replaceAnalysisSection(section, value) {
+  if (!analysis.value) return;
+  analysis.value = {
+    ...analysis.value,
+    [section]: value,
+  };
+}
+
 function startEventEdit(ev, idx) {
   editingEventIdx.value = idx;
   editingEvent.value = { ...ev };
@@ -962,7 +723,12 @@ function startEventEdit(ev, idx) {
 
 async function saveEventEdit() {
   if (editingEventIdx.value === null) return;
-  analysis.value.eventi.eventi[editingEventIdx.value] = { ...editingEvent.value };
+  const events = [...(analysis.value.eventi?.eventi || [])];
+  events[editingEventIdx.value] = { ...editingEvent.value };
+  replaceAnalysisSection("eventi", {
+    ...analysis.value.eventi,
+    eventi: events,
+  });
   editingEventIdx.value = null;
   await patchAnalysisArchive({ eventi: analysis.value.eventi });
 }
@@ -980,10 +746,10 @@ function startSummaryEdit() {
 }
 
 async function saveSummary() {
-  analysis.value.riassunto = {
+  replaceAnalysisSection("riassunto", {
     ...editingSummaryVal.value,
     argomenti: editingSummaryVal.value.argomenti.split("\n").map((s) => s.trim()).filter(Boolean),
-  };
+  });
   editingSummary.value = false;
   await patchAnalysisArchive({ riassunto: analysis.value.riassunto });
 }
@@ -995,7 +761,12 @@ function startSuggestionEdit(s, idx) {
 
 async function saveSuggestion() {
   if (editingSuggestionIdx.value === null) return;
-  analysis.value.suggerimenti.suggerimenti[editingSuggestionIdx.value] = { ...editingSuggestion.value };
+  const suggestions = [...(analysis.value.suggerimenti?.suggerimenti || [])];
+  suggestions[editingSuggestionIdx.value] = { ...editingSuggestion.value };
+  replaceAnalysisSection("suggerimenti", {
+    ...analysis.value.suggerimenti,
+    suggerimenti: suggestions,
+  });
   editingSuggestionIdx.value = null;
   await patchAnalysisArchive({ suggerimenti: analysis.value.suggerimenti });
 }
@@ -1007,57 +778,29 @@ function startConnectionEdit(c, idx) {
 
 async function saveConnection() {
   if (editingConnectionIdx.value === null) return;
-  analysis.value.connessioni.connessioni[editingConnectionIdx.value] = {
+  const connections = [...(analysis.value.connessioni?.connessioni || [])];
+  connections[editingConnectionIdx.value] = {
     ...editingConnection.value,
     note: editingConnection.value.note.split("\n").map((s) => s.trim()).filter(Boolean),
   };
+  replaceAnalysisSection("connessioni", {
+    ...analysis.value.connessioni,
+    connessioni: connections,
+  });
   editingConnectionIdx.value = null;
   await patchAnalysisArchive({ connessioni: analysis.value.connessioni });
 }
 
-function parseEventDate(str) {
-  if (!str) return null;
-  const d = new Date(str);
-  if (!isNaN(d.getTime()) && d.getFullYear() > 2020) return d;
-  const months = { gennaio:0, febbraio:1, marzo:2, aprile:3, maggio:4, giugno:5, luglio:6, agosto:7, settembre:8, ottobre:9, novembre:10, dicembre:11 };
-  const m1 = str.match(/(\d{1,2})\s+([a-zà-ü]+)\s+(\d{4})(?:[^\d]+(\d{1,2})[:\s](\d{2}))?/i);
-  if (m1 && months[m1[2].toLowerCase()] !== undefined)
-    return new Date(+m1[3], months[m1[2].toLowerCase()], +m1[1], m1[4] ? +m1[4] : 0, m1[5] ? +m1[5] : 0);
-  const m2 = str.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (m2) return new Date(+m2[3], +m2[2] - 1, +m2[1]);
-  return null;
-}
-
-function buildCalendarUrl(ev) {
-  const pad = (n) => String(n).padStart(2, "0");
-  const fmt = (d, t) => {
-    const base = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
-    return t ? `${base}T${pad(d.getHours())}${pad(d.getMinutes())}00` : base;
-  };
-  const p = new URLSearchParams({ action: "TEMPLATE", text: ev.titolo });
-  if (ev.contesto) p.set("details", ev.contesto);
-  const d = parseEventDate(ev.data);
-  if (d) {
-    const hasTime = /\d{1,2}[:h]\d{2}/.test(ev.data || "");
-    const start = fmt(d, hasTime);
-    const end = hasTime
-      ? fmt(new Date(d.getTime() + 3600000), true)
-      : fmt(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1), false);
-    p.set("dates", `${start}/${end}`);
-  }
-  return `https://calendar.google.com/calendar/render?${p.toString()}`;
-}
-
-const retranscribingIds = ref(new Set());
-
 async function retranscribe(nota) {
   retranscribingIds.value = new Set([...retranscribingIds.value, nota.id]);
   await apiFetch(`/api/notes/${nota.id}/retranscribe`, { method: "POST" });
-  notes.value = notes.value.map((n) =>
-    n.id === nota.id ? { ...n, status: "in_elaborazione", testo: null } : n
+  updateNote(
+    nota.id,
+    (note) => ({ ...note, status: "in_elaborazione", testo: null }),
+    { pollMs: 3000 },
   );
   retranscribingIds.value = new Set([...retranscribingIds.value].filter((id) => id !== nota.id));
-  if (!pollInterval) pollInterval = setInterval(() => loadNotes(false), 3000);
+  startPolling(3000);
 }
 
 async function addTextNote() {
@@ -1074,11 +817,11 @@ async function addTextNote() {
 
 async function exportNotes() {
   const res = await apiFetch("/api/notes");
-  const all = await res.json();
-  const notes = selectedIds.value.size > 0
-    ? all.filter((n) => selectedIds.value.has(n.id))
-    : all;
-  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
+  const allNotes = await res.json();
+  const exportedNotes = selectedIds.value.size > 0
+    ? allNotes.filter((note) => selectedIds.value.has(note.id))
+    : allNotes;
+  const blob = new Blob([JSON.stringify(exportedNotes, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -1108,19 +851,16 @@ async function importNotes(e) {
   }
 }
 
-const pixel8bit = ref(localStorage.getItem('mode-8bit') === '1');
-
 function toggle8bit() {
   pixel8bit.value = !pixel8bit.value;
-  document.body.classList.toggle('mode-8bit', pixel8bit.value);
-  localStorage.setItem('mode-8bit', pixel8bit.value ? '1' : '0');
+  document.body.classList.toggle("mode-8bit", pixel8bit.value);
+  localStorage.setItem("mode-8bit", pixel8bit.value ? "1" : "0");
 }
 
 onMounted(() => {
   loadNotes();
-  if (pixel8bit.value) document.body.classList.add('mode-8bit');
+  if (pixel8bit.value) document.body.classList.add("mode-8bit");
 });
-onUnmounted(() => clearInterval(pollInterval));
 </script>
 
 <style scoped>
@@ -1172,73 +912,9 @@ tbody tr.selected:hover { background: #e8e7ff; }
 .tab-btn.active { color: #007aff; border-bottom-color: #007aff; font-weight: 600; }
 .tab-btn:hover:not(.active) { color: #3c3c43; }
 
-.analisi-panel { background: #fff; border-bottom: 1px solid #e5e5ea; padding: 20px 24px; }
-.analisi-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 13px; color: #8e8e93; font-weight: 500; }
-.analisi-header-left { display: flex; align-items: center; gap: 10px; }
-.analisi-header-actions { display: flex; align-items: center; gap: 8px; }
 .power-badge { display: inline-flex; align-items: center; gap: 3px; background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; cursor: default; }
-.btn-collapse-panel { background: none; border: 1px solid #e5e5ea; border-radius: 8px; font-size: 12px; color: #8e8e93; cursor: pointer; padding: 3px 10px; }
-.btn-collapse-panel:hover { border-color: #c7c7cc; color: #3c3c43; }
-.analisi-panel:has(.analisi-cards[style*="none"]) { padding-bottom: 0; }
-.close-btn { background: none; border: none; font-size: 18px; color: #c7c7cc; cursor: pointer; }
-
-.analisi-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-
-.acard { background: #f5f5f7; border-radius: 14px; padding: 16px; }
-.acard-full { grid-column: 1 / -1; }
-.acard h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1d1d1f; }
-.acard-empty { color: #c7c7cc; font-size: 13px; font-style: italic; }
-
-.eventi-list { display: flex; flex-direction: column; gap: 10px; }
-.evento { background: #fff; border-radius: 10px; padding: 10px 12px; }
-.evento-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
-.evento-titolo { font-size: 13px; font-weight: 600; flex: 1; }
-.evento-header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.btn-gcal { font-size: 16px; text-decoration: none; opacity: 0.6; transition: opacity 0.15s; line-height: 1; }
-.btn-gcal:hover { opacity: 1; }
-.btn-ev-edit { background: none; border: none; font-size: 13px; cursor: pointer; opacity: 0; padding: 0 2px; transition: opacity 0.15s; }
-.evento:hover .btn-ev-edit,
-.suggerimento:hover .btn-ev-edit,
-.connessione:hover .btn-ev-edit { opacity: 1; }
-.ev-input { width: 100%; padding: 6px 10px; border: 1.5px solid #e5e5ea; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; margin-bottom: 6px; box-sizing: border-box; }
-.ev-input:focus { border-color: #007aff; }
-.ev-select { padding: 6px 10px; border: 1.5px solid #e5e5ea; border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 6px; width: 100%; }
-.ev-edit-actions { display: flex; gap: 8px; }
-.acard-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.acard-title-row h3 { margin-bottom: 0; }
-.btn-acard-edit { background: none; border: none; font-size: 13px; cursor: pointer; opacity: 0.5; padding: 0; transition: opacity 0.15s; }
-.btn-acard-edit:hover { opacity: 1; }
-.rv-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
-.rv-field label { font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.4px; }
-.rv-textarea { resize: vertical; }
-.evento-meta { font-size: 12px; color: #8e8e93; margin-top: 2px; }
-
-.riassunto { display: flex; flex-direction: column; gap: 8px; }
-.riassunto-row { font-size: 13px; line-height: 1.5; }
-.riassunto-row strong { color: #8e8e93; font-weight: 600; margin-right: 4px; }
-.sintesi { color: #3c3c43; font-style: italic; border-top: 1px solid #e5e5ea; padding-top: 8px; margin-top: 4px; }
-
-.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.tag { background: #e5e5ea; border-radius: 20px; padding: 2px 10px; font-size: 12px; }
-
-.suggerimenti-list { display: flex; flex-direction: column; gap: 10px; }
-.suggerimento { background: #fff; border-radius: 10px; padding: 10px 12px; }
-.sug-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.sug-titolo { font-size: 13px; font-weight: 600; }
-.sug-desc { font-size: 12px; color: #3c3c43; line-height: 1.4; }
-
-.connessioni-list { display: flex; flex-direction: row; flex-wrap: wrap; gap: 12px; }
-.connessione { background: #fff; border-radius: 10px; padding: 10px 14px; flex: 1; min-width: 200px; border-left: 3px solid #5856d6; }
-.conn-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.conn-tema { font-size: 13px; font-weight: 700; color: #5856d6; }
-.connessione:hover .btn-ev-edit { opacity: 1; }
-.conn-desc { font-size: 12px; color: #3c3c43; line-height: 1.4; margin-bottom: 4px; }
-.conn-note { font-size: 11px; color: #8e8e93; }
-
-.badge-prio { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
-.badge-prio.alta { background: #ffe5e5; color: #ff3b30; }
-.badge-prio.media { background: #fff4e5; color: #ff9500; }
-.badge-prio.bassa { background: #e8f8ec; color: #34c759; }
+.empty { text-align: center; color: #8e8e93; padding: 60px; }
+.muted { color: #c7c7cc; font-style: italic; }
 
 .log-panel { background: #1c1c1e; color: #30d158; font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; padding: 12px 24px; max-height: 110px; overflow-y: auto; border-bottom: 1px solid #38383a; }
 .log-line { padding: 1px 0; line-height: 1.6; white-space: pre-wrap; display: flex; gap: 10px; align-items: baseline; }
@@ -1261,8 +937,6 @@ tbody tr.selected:hover { background: #e8e7ff; }
 .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
 .slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-10px); }
 
-.bo-main { flex: 1; overflow: auto; padding: 20px 24px; }
-.empty { text-align: center; color: #8e8e93; padding: 60px; }
 .table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
 thead th { background: #f2f2f7; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; }
 tbody tr { border-top: 1px solid #f2f2f7; transition: background 0.15s; }
@@ -1272,13 +946,6 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .cell-date { color: #8e8e93; font-size: 13px; white-space: nowrap; }
 .cell-audio audio { width: 160px; height: 32px; }
 .cell-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.badge.completata { background: #e8f8ec; color: #34c759; }
-.badge.in_elaborazione { background: #fff4e5; color: #ff9500; }
-.sent-emoji { font-size: 16px; line-height: 1; }
-.cell-text { max-width: 500px; line-height: 1.5; }
-.muted { color: #c7c7cc; font-style: italic; }
-.label-pulito { display: inline-block; font-size: 10px; font-weight: 700; background: #e8f8ec; color: #34c759; border-radius: 6px; padding: 1px 6px; margin-right: 6px; vertical-align: middle; }
 .btn-delete { background: none; border: none; color: #c7c7cc; font-size: 16px; cursor: pointer; padding: 4px 8px; }
 .btn-delete:hover { color: #ff3b30; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
@@ -1428,10 +1095,6 @@ tr:hover .btn-edit { opacity: 1; }
   .btn-analisi { font-size: 13px; padding: 8px 10px; }
   .tab-bar { padding: 6px 14px 0; gap: 2px; }
   .tab-btn { padding: 8px 10px; font-size: 13px; }
-  .analisi-panel { padding: 14px; }
-  .analisi-cards { grid-template-columns: 1fr; }
-  .acard-full { grid-column: 1; }
-  .bo-main { padding: 12px 14px; }
   .stats-main { padding: 14px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .stat-wide { grid-column: span 2; }
@@ -1443,9 +1106,6 @@ tr:hover .btn-edit { opacity: 1; }
   .chat-input-row { padding: 10px 14px; }
   .bubble { max-width: 90%; }
   .log-panel { padding: 10px 14px; }
-  .giorno-header { padding: 12px 14px; }
-  .giorno-body { padding: 0 8px 8px; }
-  .giorno-label { font-size: 13px; }
 }
 
 @media (max-width: 480px) {
@@ -1473,6 +1133,19 @@ tr:hover .btn-edit { opacity: 1; }
 
 <style>
 /* ── 8-BIT MODE ─────────────────────────────────────── */
+/* Palette
+   --bg:      #0d1b2a  dark navy
+   --bg2:     #112233  panels/cards
+   --bg3:     #1a3348  hover
+   --fg:      #74c69d  soft green text
+   --fg2:     #b7e4c7  light green
+   --accent:  #ff6b9d  magenta for primary actions
+   --cyan:    #48cae4  AI bubbles
+   --border:  #2d6a4f  border color
+   --border2: #52b788  active border
+   --yellow:  #ffd60a  highlights
+*/
+
 body.mode-8bit, body.mode-8bit * {
   font-family: 'Press Start 2P', monospace !important;
   border-radius: 0 !important;
@@ -1480,136 +1153,151 @@ body.mode-8bit, body.mode-8bit * {
   transition: none !important;
 }
 
-/* Scanlines overlay */
+/* Scanlines CRT overlay */
 body.mode-8bit::after {
   content: '';
   position: fixed;
   inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px);
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px);
   pointer-events: none;
   z-index: 99997;
 }
 
-body.mode-8bit { background: #080808 !important; color: #00ff41 !important; cursor: crosshair; }
+body.mode-8bit { background: #0d1b2a !important; color: #74c69d !important; cursor: crosshair; }
 
-/* Layout */
-body.mode-8bit .bo { background: #080808 !important; color: #00ff41 !important; }
-body.mode-8bit .bo-header { background: #0d0d0d !important; border-bottom: 3px solid #00ff41 !important; box-shadow: 0 3px 0 #004d14 !important; }
-body.mode-8bit .bo-header h1 { font-size: 9px !important; color: #00ff41 !important; text-shadow: 2px 2px 0 #004d14 !important; letter-spacing: 1px !important; }
-body.mode-8bit .tab-bar { background: #0d0d0d !important; border-bottom: 3px solid #00ff41 !important; padding-bottom: 0 !important; }
-body.mode-8bit .tab-btn { color: #1a6b2e !important; font-size: 6px !important; letter-spacing: 0 !important; }
-body.mode-8bit .tab-btn.active { color: #00ff41 !important; border-bottom: 3px solid #00ff41 !important; }
-body.mode-8bit .tab-btn:hover:not(.active) { color: #00ff41 !important; background: #001400 !important; }
+/* ── Base: ogni div/elemento prende il dark navy ── */
+body.mode-8bit .bo { background: #0d1b2a !important; color: #74c69d !important; }
+body.mode-8bit .bo-header { background: #112233 !important; border-bottom: 3px solid #52b788 !important; box-shadow: 0 3px 0 #2d6a4f !important; }
+body.mode-8bit .bo-header h1 { font-size: 9px !important; color: #b7e4c7 !important; text-shadow: 2px 2px 0 #2d6a4f !important; }
+
+/* Tab bar */
+body.mode-8bit .tab-bar { background: #112233 !important; border-bottom: 3px solid #52b788 !important; }
+body.mode-8bit .tab-btn { color: #3a7d5a !important; font-size: 6px !important; }
+body.mode-8bit .tab-btn.active { color: #74c69d !important; border-bottom: 3px solid #52b788 !important; background: transparent !important; }
+body.mode-8bit .tab-btn:hover:not(.active) { color: #74c69d !important; background: #1a3348 !important; box-shadow: none !important; transform: none !important; }
 
 /* Inputs */
 body.mode-8bit input, body.mode-8bit textarea, body.mode-8bit select {
-  background: #0d0d0d !important; color: #00ff41 !important;
-  border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important;
+  background: #0d1b2a !important; color: #74c69d !important;
+  border: 2px solid #52b788 !important; box-shadow: 3px 3px 0 #2d6a4f !important;
   font-size: 7px !important; outline: none !important;
 }
-body.mode-8bit input:focus, body.mode-8bit textarea:focus {
-  border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important;
-}
-body.mode-8bit input::placeholder, body.mode-8bit textarea::placeholder { color: #1a6b2e !important; }
+body.mode-8bit input:focus, body.mode-8bit textarea:focus { border-color: #ff6b9d !important; box-shadow: 3px 3px 0 #8b1a4a !important; }
+body.mode-8bit input::placeholder, body.mode-8bit textarea::placeholder { color: #3a7d5a !important; }
 
 /* All buttons base */
 body.mode-8bit button {
-  background: #0d0d0d !important; color: #00ff41 !important;
-  border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important;
+  background: #112233 !important; color: #74c69d !important;
+  border: 2px solid #52b788 !important; box-shadow: 3px 3px 0 #2d6a4f !important;
   font-size: 7px !important; cursor: pointer !important;
 }
 body.mode-8bit button:hover:not(:disabled) {
-  background: #00ff41 !important; color: #080808 !important;
+  background: #52b788 !important; color: #0d1b2a !important;
   box-shadow: none !important; transform: translate(3px, 3px) !important;
 }
-body.mode-8bit button:disabled { opacity: 0.35 !important; }
+body.mode-8bit button:disabled { opacity: 0.4 !important; }
 
-/* Primary action buttons */
-body.mode-8bit .btn-pulisci, body.mode-8bit .btn-analisi {
-  background: #ff00ff !important; color: #080808 !important;
-  border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important;
+/* Primary action buttons (verde scuro → magenta) */
+body.mode-8bit .btn-pulisci, body.mode-8bit .btn-analisi, body.mode-8bit .chat-send {
+  background: #ff6b9d !important; color: #0d1b2a !important;
+  border-color: #ff6b9d !important; box-shadow: 3px 3px 0 #8b1a4a !important;
 }
-body.mode-8bit .btn-pulisci:hover, body.mode-8bit .btn-analisi:hover {
-  background: #0d0d0d !important; color: #ff00ff !important;
+body.mode-8bit .btn-pulisci:hover, body.mode-8bit .btn-analisi:hover, body.mode-8bit .chat-send:hover {
+  background: #0d1b2a !important; color: #ff6b9d !important;
 }
-body.mode-8bit .btn-analisi-arrow {
-  background: #cc00cc !important; border-color: #ff00ff !important;
-  box-shadow: 3px 3px 0 #660066 !important; color: #080808 !important;
-}
-body.mode-8bit .btn-save {
-  background: #00ff41 !important; color: #080808 !important;
-  border-color: #00ff41 !important;
-}
+body.mode-8bit .btn-analisi-arrow { background: #cc4477 !important; border-color: #ff6b9d !important; box-shadow: 3px 3px 0 #8b1a4a !important; color: #0d1b2a !important; }
+body.mode-8bit .btn-save { background: #52b788 !important; color: #0d1b2a !important; border-color: #52b788 !important; }
+body.mode-8bit .btn-modal-confirm { background: #ff6b9d !important; color: #0d1b2a !important; border-color: #ff6b9d !important; }
+body.mode-8bit .btn-io { background: #1a3348 !important; color: #74c69d !important; border-color: #52b788 !important; }
 
 /* Panels */
-body.mode-8bit .analisi-panel, body.mode-8bit .testo-panel {
-  background: #0a0a0a !important; border-bottom: 2px solid #00ff41 !important;
-}
-body.mode-8bit .analisi-dropdown {
-  background: #0d0d0d !important; border: 2px solid #00ff41 !important;
-  box-shadow: 4px 4px 0 #004d14 !important;
-}
-body.mode-8bit .analisi-dropdown button { color: #00ff41 !important; font-size: 7px !important; border-top: 1px solid #004d14 !important; }
-body.mode-8bit .analisi-dropdown button:hover { background: #001400 !important; color: #00ff41 !important; transform: none !important; box-shadow: none !important; }
+body.mode-8bit .analisi-panel, body.mode-8bit .testo-panel { background: #112233 !important; border-bottom: 2px solid #52b788 !important; }
+body.mode-8bit .analisi-dropdown { background: #112233 !important; border: 2px solid #52b788 !important; box-shadow: 4px 4px 0 #2d6a4f !important; }
+body.mode-8bit .analisi-dropdown button { color: #74c69d !important; font-size: 7px !important; border-top: 1px solid #2d6a4f !important; background: #112233 !important; box-shadow: none !important; }
+body.mode-8bit .analisi-dropdown button:hover { background: #1a3348 !important; color: #b7e4c7 !important; transform: none !important; box-shadow: none !important; }
+
+/* Analysis cards */
+body.mode-8bit .acard { background: #1a3348 !important; border: 2px solid #2d6a4f !important; box-shadow: 3px 3px 0 #2d6a4f !important; }
+body.mode-8bit .acard-title { color: #b7e4c7 !important; font-size: 7px !important; }
+body.mode-8bit .evento, body.mode-8bit .suggerimento, body.mode-8bit .connessione { background: #112233 !important; border: 1px solid #2d6a4f !important; color: #74c69d !important; }
+body.mode-8bit .connessione { border-left: 3px solid #ff6b9d !important; }
+body.mode-8bit .evento-titolo, body.mode-8bit .sug-title { color: #b7e4c7 !important; font-size: 7px !important; }
+body.mode-8bit .tag { background: #1a3348 !important; color: #74c69d !important; border: 1px solid #2d6a4f !important; font-size: 6px !important; }
+body.mode-8bit .badge-prio.alta { background: #2d1a1a !important; color: #ff6b9d !important; border: 1px solid #ff6b9d !important; }
+body.mode-8bit .badge-prio.media { background: #2d2a1a !important; color: #ffd60a !important; border: 1px solid #ffd60a !important; }
+body.mode-8bit .badge-prio.bassa { background: #1a2d1a !important; color: #52b788 !important; border: 1px solid #52b788 !important; }
 
 /* Table */
-body.mode-8bit .notes-table-wrap { background: #080808 !important; }
-body.mode-8bit table { background: #080808 !important; }
-body.mode-8bit th { background: #001400 !important; color: #00ff41 !important; font-size: 7px !important; border: 1px solid #004d14 !important; letter-spacing: 0 !important; }
-body.mode-8bit td { background: #080808 !important; color: #00ff41 !important; font-size: 7px !important; border: 1px solid #001400 !important; }
-body.mode-8bit tbody tr:hover td { background: #001400 !important; }
-body.mode-8bit tbody tr.selected td { background: #002600 !important; }
-body.mode-8bit .note-text { color: #00ff41 !important; font-size: 7px !important; line-height: 1.8 !important; }
-body.mode-8bit .note-text-clean { color: #00e5ff !important; }
-body.mode-8bit .badge-status { background: #001400 !important; color: #00ff41 !important; border: 1px solid #00ff41 !important; font-size: 6px !important; }
-body.mode-8bit .badge-sentiment { background: #0d0d0d !important; border: 1px solid #004d14 !important; font-size: 6px !important; }
-body.mode-8bit .sintesi-text { color: #00e5ff !important; font-size: 7px !important; }
+body.mode-8bit .notes-table-wrap { background: #0d1b2a !important; }
+body.mode-8bit table, body.mode-8bit .table { background: #0d1b2a !important; box-shadow: none !important; }
+body.mode-8bit th { background: #1a3348 !important; color: #b7e4c7 !important; font-size: 6px !important; border: 1px solid #2d6a4f !important; }
+body.mode-8bit td { background: #112233 !important; color: #74c69d !important; font-size: 7px !important; border: 1px solid #1a3348 !important; }
+body.mode-8bit tbody tr:hover td { background: #1a3348 !important; }
+body.mode-8bit tbody tr.selected td { background: #1a3348 !important; border-color: #52b788 !important; }
+body.mode-8bit .note-text { color: #74c69d !important; font-size: 7px !important; line-height: 1.8 !important; }
+body.mode-8bit .note-text-clean { color: #48cae4 !important; }
+body.mode-8bit .badge, body.mode-8bit .badge-status { background: #1a3348 !important; color: #74c69d !important; border: 1px solid #52b788 !important; font-size: 6px !important; }
+body.mode-8bit .badge.completata { background: #1a2d1a !important; color: #52b788 !important; border-color: #52b788 !important; }
+body.mode-8bit .badge.in_elaborazione { background: #2d2a1a !important; color: #ffd60a !important; border-color: #ffd60a !important; }
+body.mode-8bit .badge-sentiment { background: #1a3348 !important; border: 1px solid #2d6a4f !important; color: #74c69d !important; font-size: 6px !important; }
+body.mode-8bit .sintesi-text { color: #48cae4 !important; font-size: 7px !important; }
+body.mode-8bit .label-pulito { background: #1a2d1a !important; color: #52b788 !important; font-size: 6px !important; }
+body.mode-8bit .note-date { color: #3a7d5a !important; font-size: 6px !important; }
+body.mode-8bit .error-bar { background: #2d1a1a !important; color: #ff6b9d !important; border: 1px solid #ff6b9d !important; }
 
 /* Archive */
-body.mode-8bit .archive-list { background: #080808 !important; }
-body.mode-8bit .archive-item { background: #0d0d0d !important; border: 2px solid #004d14 !important; box-shadow: 3px 3px 0 #004d14 !important; }
-body.mode-8bit .archive-item:hover, body.mode-8bit .archive-item.active { border-color: #00ff41 !important; box-shadow: 3px 3px 0 #00ff41 !important; background: #001400 !important; }
-body.mode-8bit .archive-title { color: #00ff41 !important; font-size: 7px !important; }
-body.mode-8bit .archive-date { color: #1a6b2e !important; font-size: 6px !important; }
-body.mode-8bit .recap-panel { background: #0a0a0a !important; }
-body.mode-8bit .recap-section { background: #0d0d0d !important; border: 2px solid #004d14 !important; box-shadow: 3px 3px 0 #004d14 !important; }
-body.mode-8bit .recap-section-title { color: #ff00ff !important; font-size: 7px !important; }
+body.mode-8bit .archive-wrap { background: #0d1b2a !important; }
+body.mode-8bit .archive-list { background: #0d1b2a !important; border-right: 2px solid #2d6a4f !important; }
+body.mode-8bit .archive-item { background: #112233 !important; border: 2px solid #1a3348 !important; box-shadow: 3px 3px 0 #1a3348 !important; }
+body.mode-8bit .archive-item:hover, body.mode-8bit .archive-item.active { border-color: #52b788 !important; box-shadow: 3px 3px 0 #2d6a4f !important; background: #1a3348 !important; }
+body.mode-8bit .archive-title { color: #b7e4c7 !important; font-size: 7px !important; }
+body.mode-8bit .archive-date { color: #3a7d5a !important; font-size: 6px !important; }
+body.mode-8bit .recap-panel { background: #0d1b2a !important; }
+body.mode-8bit .recap-section { background: #112233 !important; border: 2px solid #2d6a4f !important; box-shadow: 3px 3px 0 #2d6a4f !important; }
+body.mode-8bit .recap-section-title { color: #ff6b9d !important; font-size: 7px !important; }
+body.mode-8bit .recap-item { background: #1a3348 !important; color: #74c69d !important; border: 1px solid #2d6a4f !important; }
+body.mode-8bit .archive-empty { color: #3a7d5a !important; }
 
 /* Chat */
-body.mode-8bit .chat-panel { background: #080808 !important; border-top: 2px solid #00ff41 !important; }
-body.mode-8bit .chat-messages { background: #080808 !important; }
-body.mode-8bit .bubble-user { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important; font-size: 7px !important; }
-body.mode-8bit .bubble-ai { background: #00001a !important; color: #00e5ff !important; border: 2px solid #00e5ff !important; box-shadow: 3px 3px 0 #003366 !important; font-size: 7px !important; }
-body.mode-8bit .chat-mode-pills { background: #0d0d0d !important; border-bottom: 2px solid #00ff41 !important; }
-body.mode-8bit .pill { background: #0d0d0d !important; color: #1a6b2e !important; border: 2px solid #004d14 !important; font-size: 6px !important; }
-body.mode-8bit .pill.active { background: #00ff41 !important; color: #080808 !important; border-color: #00ff41 !important; box-shadow: 2px 2px 0 #004d14 !important; }
-body.mode-8bit .chat-input-row { background: #0d0d0d !important; border-top: 2px solid #00ff41 !important; }
-body.mode-8bit .chat-send { background: #ff00ff !important; color: #080808 !important; border-color: #ff00ff !important; box-shadow: 3px 3px 0 #660066 !important; }
+body.mode-8bit .chat-panel { background: #0d1b2a !important; }
+body.mode-8bit .chat-messages { background: #0d1b2a !important; }
+body.mode-8bit .chat-mode-pills { background: #112233 !important; border-bottom: 2px solid #52b788 !important; }
+body.mode-8bit .pill { background: #112233 !important; color: #3a7d5a !important; border: 2px solid #2d6a4f !important; font-size: 6px !important; }
+body.mode-8bit .pill.active { background: #52b788 !important; color: #0d1b2a !important; border-color: #52b788 !important; box-shadow: 2px 2px 0 #2d6a4f !important; }
+body.mode-8bit .chat-input-row { background: #112233 !important; border-top: 2px solid #52b788 !important; }
+body.mode-8bit .bubble-user { background: #1a3348 !important; color: #b7e4c7 !important; border: 2px solid #52b788 !important; box-shadow: 3px 3px 0 #2d6a4f !important; font-size: 7px !important; }
+body.mode-8bit .bubble-ai { background: #0d1b2a !important; color: #48cae4 !important; border: 2px solid #48cae4 !important; box-shadow: 3px 3px 0 #1a4a6a !important; font-size: 7px !important; }
+body.mode-8bit .typing-dots span { background: #74c69d !important; }
 
 /* Modals */
-body.mode-8bit .modal-overlay { background: rgba(0, 0, 0, 0.85) !important; }
-body.mode-8bit .modal-box { background: #0d0d0d !important; border: 3px solid #00ff41 !important; box-shadow: 6px 6px 0 #004d14 !important; color: #00ff41 !important; }
-body.mode-8bit .modal-box h3, body.mode-8bit .modal-title { color: #ff00ff !important; font-size: 9px !important; }
-body.mode-8bit .modal-actions button, body.mode-8bit .modal-footer button { font-size: 7px !important; }
-body.mode-8bit .confirm-btn-ok { background: #ff00ff !important; color: #080808 !important; border-color: #ff00ff !important; }
+body.mode-8bit .modal-overlay { background: rgba(0,20,40,0.88) !important; }
+body.mode-8bit .modal-box { background: #112233 !important; border: 3px solid #52b788 !important; box-shadow: 6px 6px 0 #2d6a4f !important; color: #74c69d !important; }
+body.mode-8bit .modal-box h3 { color: #ff6b9d !important; font-size: 9px !important; }
+body.mode-8bit .btn-modal-cancel { background: #1a3348 !important; color: #74c69d !important; border-color: #52b788 !important; }
 
-/* Power badge */
-body.mode-8bit .power-badge { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; box-shadow: 3px 3px 0 #004d14 !important; font-size: 6px !important; }
-
-/* Sel badge */
-body.mode-8bit .sel-badge { background: #001400 !important; color: #00ff41 !important; border: 2px solid #00ff41 !important; font-size: 6px !important; }
+/* Sel / power badges */
+body.mode-8bit .sel-badge { background: #1a3348 !important; color: #74c69d !important; border: 2px solid #52b788 !important; font-size: 6px !important; }
+body.mode-8bit .sel-clear { color: #74c69d !important; }
+body.mode-8bit .power-badge { background: #2d2a1a !important; color: #ffd60a !important; border: 2px solid #ffd60a !important; box-shadow: 3px 3px 0 #5a4a00 !important; font-size: 6px !important; }
 
 /* Log panel */
-body.mode-8bit .log-panel { background: #020c02 !important; border: 2px solid #00ff41 !important; color: #00ff41 !important; }
-body.mode-8bit .log-line { color: #00aa28 !important; font-size: 6px !important; }
-body.mode-8bit .streaming-text { color: #00e5ff !important; font-size: 7px !important; }
+body.mode-8bit .log-panel { background: #060f17 !important; border: 2px solid #2d6a4f !important; color: #52b788 !important; }
+body.mode-8bit .log-line { color: #3a7d5a !important; font-size: 6px !important; }
+body.mode-8bit .log-streaming-text { color: #ffd60a !important; font-size: 6px !important; }
+body.mode-8bit .log-streaming-label { color: #3a7d5a !important; }
+
+/* Misc */
+body.mode-8bit .stat-card { background: #112233 !important; border: 2px solid #2d6a4f !important; box-shadow: 3px 3px 0 #2d6a4f !important; color: #74c69d !important; }
+body.mode-8bit .btn-collapse-panel { background: #1a3348 !important; color: #74c69d !important; border-color: #2d6a4f !important; }
+body.mode-8bit .close-btn { color: #52b788 !important; background: transparent !important; border: none !important; box-shadow: none !important; }
+body.mode-8bit .testo-hint { color: #3a7d5a !important; }
+body.mode-8bit .analisi-header { color: #3a7d5a !important; }
+body.mode-8bit .analisi-error { color: #ff6b9d !important; font-size: 7px !important; }
 
 /* Scrollbars */
-body.mode-8bit ::-webkit-scrollbar { width: 8px; background: #080808; }
-body.mode-8bit ::-webkit-scrollbar-thumb { background: #00ff41; }
-body.mode-8bit ::-webkit-scrollbar-track { background: #001400; }
+body.mode-8bit ::-webkit-scrollbar { width: 8px; background: #0d1b2a; }
+body.mode-8bit ::-webkit-scrollbar-thumb { background: #52b788; }
+body.mode-8bit ::-webkit-scrollbar-track { background: #112233; }
 
-/* Blinking cursor effect on active elements */
-body.mode-8bit input:focus::after { content: '▮'; animation: blink8 1s step-end infinite; }
 @keyframes blink8 { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 </style>
