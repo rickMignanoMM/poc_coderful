@@ -60,7 +60,12 @@
     <transition name="slide">
       <div v-if="analysis" class="analisi-panel">
         <div class="analisi-header">
-          <span>🤖 Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
+          <div class="analisi-header-left">
+            <span>🤖 Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
+            <span v-if="analysis.power" class="power-badge" :title="`${analysis.power.joules} J in ${analysis.power.elapsed}s`">
+              ⚡ {{ analysis.power.watts }} W
+            </span>
+          </div>
           <div class="analisi-header-actions">
             <button class="btn-collapse-panel" @click="analysisCollapsed = !analysisCollapsed">
               {{ analysisCollapsed ? '▼ Espandi' : '▲ Riduci' }}
@@ -68,6 +73,7 @@
             <button class="close-btn" @click="analysis = null">✕</button>
           </div>
         </div>
+
         <div v-show="!analysisCollapsed" class="analisi-cards">
 
           <!-- EVENTI -->
@@ -382,6 +388,7 @@
               <div class="arch-date">{{ formatDate(entry.generatoIl) }}</div>
               <div class="arch-tipi">
                 <span v-for="t in (entry.tipi || [])" :key="t" class="arch-chip">{{ typeLabel(t) }}</span>
+                <span v-if="entry.power" class="power-badge" :title="`${entry.power.joules} J in ${entry.power.elapsed}s`">⚡ {{ entry.power.watts }} W</span>
               </div>
             </div>
             <div class="arch-preview">
@@ -1075,7 +1082,9 @@ tbody tr.selected:hover { background: #e8e7ff; }
 
 .analisi-panel { background: #fff; border-bottom: 1px solid #e5e5ea; padding: 20px 24px; }
 .analisi-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 13px; color: #8e8e93; font-weight: 500; }
+.analisi-header-left { display: flex; align-items: center; gap: 10px; }
 .analisi-header-actions { display: flex; align-items: center; gap: 8px; }
+.power-badge { display: inline-flex; align-items: center; gap: 3px; background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 600; cursor: default; }
 .btn-collapse-panel { background: none; border: 1px solid #e5e5ea; border-radius: 8px; font-size: 12px; color: #8e8e93; cursor: pointer; padding: 3px 10px; }
 .btn-collapse-panel:hover { border-color: #c7c7cc; color: #3c3c43; }
 .analisi-panel:has(.analisi-cards[style*="none"]) { padding-bottom: 0; }

@@ -1,5 +1,6 @@
 const AI_BASE_URL = process.env.AI_BASE_URL || "http://127.0.0.1:8080";
 const AI_MODEL = process.env.AI_MODEL || "local";
+const { PowerSampler } = require("./power");
 
 const PROMPT_PULIZIA_COMPLETA = `Sei un assistente che elabora trascrizioni audio in italiano.
 Dato un testo trascritto automaticamente, restituisci un JSON con tre campi:
@@ -199,6 +200,9 @@ async function analyzeType(notes, type, onLog, onStream, noteIds = null) {
     ? ["eventi", "riassunto", "suggerimenti", "connessioni"]
     : [type];
 
+  const powerSampler = new PowerSampler();
+  powerSampler.start();
+
   const rawResults = [];
   for (let i = 0; i < types.length; i++) {
     const t = types[i];
@@ -225,10 +229,15 @@ async function analyzeType(notes, type, onLog, onStream, noteIds = null) {
 
   const totalTok = tokList.reduce((a, b) => a + b, 0);
   const meanTps = tpsList.length ? tpsList.reduce((a, b) => a + b, 0) / tpsList.length : 0;
-  if (totalTok) emitLog(`↳ ${totalTok} tok totali · ${meanTps.toFixed(1)} tok/s medio`, startTime, onLog);
+  const power = powerSampler.stop();
+  if (totalTok) {
+    let log = `↳ ${totalTok} tok · ${meanTps.toFixed(1)} tok/s`;
+    if (power) log += ` · ${power.watts} W · ${power.joules} J`;
+    emitLog(log, startTime, onLog);
+  }
   emitLog("Analisi completata ✓", startTime, onLog);
 
-  return { ...result, tipi: types, generatoIl: new Date().toISOString() };
+  return { ...result, tipi: types, generatoIl: new Date().toISOString(), power };
 }
 
 async function chatWithNotes(notes, question, history, onLog, onStream) {
