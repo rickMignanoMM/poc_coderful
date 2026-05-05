@@ -62,8 +62,8 @@
         <div class="analisi-header">
           <div class="analisi-header-left">
             <span>🤖 Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
-            <span v-if="analysis.power" class="power-badge" :title="`${analysis.power.joules} J in ${analysis.power.elapsed}s`">
-              ⚡ {{ analysis.power.watts }} W · {{ analysis.power.tokPerSec }} tok/s
+            <span v-if="analysis.power" class="power-badge" :title="`${analysis.power.joules} J totali`">
+              ⚡ {{ analysis.power.watts }} W · {{ analysis.power.tokPerSec }} tok/s · {{ analysis.power.elapsed }}s
             </span>
           </div>
           <div class="analisi-header-actions">
@@ -388,7 +388,7 @@
               <div class="arch-date">{{ formatDate(entry.generatoIl) }}</div>
               <div class="arch-tipi">
                 <span v-for="t in (entry.tipi || [])" :key="t" class="arch-chip">{{ typeLabel(t) }}</span>
-                <span v-if="entry.power" class="power-badge" :title="`${entry.power.joules} J in ${entry.power.elapsed}s`">⚡ {{ entry.power.watts }} W · {{ entry.power.tokPerSec }} tok/s</span>
+                <span v-if="entry.power" class="power-badge" :title="`${entry.power.joules} J totali`">⚡ {{ entry.power.watts }} W · {{ entry.power.tokPerSec }} tok/s · {{ entry.power.elapsed }}s</span>
               </div>
             </div>
             <div class="arch-preview">
