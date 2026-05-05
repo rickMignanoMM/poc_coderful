@@ -1,0 +1,49 @@
+.bo-main { flex: 1; overflow: auto; padding: 20px 24px; }
+.empty { text-align: center; color: #8e8e93; padding: 60px; }
+.note-toolbar { display: flex; align-items: center; padding: 0 0 10px; }
+.select-all-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #3c3c43; }
+.giorni-list { display: flex; flex-direction: column; gap: 10px; }
+.giorno-accordion { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.giorno-header { width: 100%; background: #fff; border: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px; text-align: left; cursor: pointer; }
+.giorno-header.open { border-bottom: 1px solid #f2f2f7; }
+.giorno-chevron { font-size: 22px; color: #8e8e93; transform: rotate(0deg); transition: transform 0.15s ease; line-height: 1; }
+.giorno-chevron.open { transform: rotate(90deg); }
+.giorno-label { flex: 1; font-size: 14px; font-weight: 600; color: #1d1d1f; text-transform: capitalize; }
+.giorno-count { font-size: 12px; color: #8e8e93; }
+.giorno-body { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.nota-card { border: 1.5px solid #f2f2f7; border-radius: 12px; overflow: hidden; background: #fff; transition: border-color 0.15s; }
+.nota-card:hover { border-color: #e5e5ea; }
+.nota-card.selected { border-color: #5856d6; background: #f8f7ff; }
+.nota-card.pending { opacity: 0.7; }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #fafafa; border-bottom: 1px solid #f2f2f7; gap: 8px; }
+.card-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-time { font-size: 12px; color: #8e8e93; }
+.cb { width: 16px; height: 16px; cursor: pointer; accent-color: #5856d6; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge.completata { background: #e8f8ec; color: #34c759; }
+.badge.in_elaborazione { background: #fff4e5; color: #ff9500; }
+.sent-emoji { font-size: 16px; line-height: 1; }
+.btn-delete { background: none; border: none; color: #c7c7cc; font-size: 16px; cursor: pointer; padding: 4px 8px; }
+.btn-delete:hover { color: #ff3b30; }
+.card-audio { padding: 12px 14px 0; }
+.card-audio audio { width: 100%; }
+.card-text { padding: 12px 14px 14px; line-height: 1.55; font-size: 14px; color: #1d1d1f; }
+.text-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.text-row span { flex: 1; }
+.label-pulito { display: inline-block; font-size: 10px; font-weight: 700; background: #e8f8ec; color: #34c759; border-radius: 6px; padding: 1px 6px; margin-right: 6px; vertical-align: middle; }
+.muted { color: #c7c7cc; font-style: italic; }
+.btn-retranscribe, .btn-expand, .btn-edit { background: none; border: none; cursor: pointer; }
+.btn-retranscribe { color: #007aff; font-size: 12px; padding: 0 4px; text-decoration: underline; }
+.btn-expand { color: #007aff; font-size: 12px; padding: 0; margin-left: 8px; }
+.btn-edit { color: #8e8e93; font-size: 14px; padding: 2px 4px; opacity: 0.7; }
+.btn-edit:hover { opacity: 1; }
+.edit-textarea { width: 100%; min-height: 80px; padding: 8px 10px; border: 1.5px solid #007aff; border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.5; resize: vertical; outline: none; box-sizing: border-box; }
+.edit-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-save, .btn-cancel { padding: 7px 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-save { background: #34c759; color: #fff; }
+.btn-cancel { background: #f2f2f7; color: #3a3a3c; }
+.text-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+@media (max-width: 900px) {
+  .bo-main { padding: 12px 14px; }
+}

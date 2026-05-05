@@ -2,7 +2,7 @@
   <div class="notes-view">
     <div class="toolbar">
       <span class="count">{{ notes.length }} {{ notes.length === 1 ? "nota" : "note" }}</span>
-      <button class="refresh-btn" @click="carica" :disabled="loading">↻</button>
+      <button class="refresh-btn" @click="loadNotes" :disabled="loading">↻</button>
     </div>
 
     <div v-if="loading" class="empty">Caricamento...</div>
@@ -12,7 +12,7 @@
       <div v-for="nota in notes" :key="nota.id" class="note-card">
         <div class="note-header">
           <div>
-            <div class="note-date">{{ formatDate(nota.createdAt) }}</div>
+            <div class="note-date">{{ formatDateTime(nota.createdAt) }}</div>
             <div class="note-status" :class="nota.status">
               {{ nota.status === "completata" ? "✓ Trascritto" : "⏳ In elaborazione..." }}
             </div>
@@ -32,50 +32,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { onMounted } from "vue";
 import { useApi } from "../composables/useApi.js";
+import { useNotesCollection } from "../composables/useNotesCollection.js";
+import { formatDateTime } from "../utils/dateTime.js";
 
 const { apiFetch, mediaUrl } = useApi();
-
-const notes = ref([]);
-const loading = ref(true);
-let pollInterval = null;
-
-async function carica(mostraLoading = true) {
-  if (mostraLoading) loading.value = true;
-  try {
-    const res = await apiFetch("/api/notes");
-    notes.value = await res.json();
-  } finally {
-    if (mostraLoading) loading.value = false;
-  }
-  // smetti di fare polling se non ci sono note in elaborazione
-  const hasPending = notes.value.some((n) => n.status === "in_elaborazione");
-  if (!hasPending && pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  } else if (hasPending && !pollInterval) {
-    pollInterval = setInterval(() => carica(false), 4000);
-  }
-}
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleString("it-IT", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+const { notes, loading, loadNotes, removeNote } = useNotesCollection(apiFetch);
 
 async function elimina(id) {
   await apiFetch(`/api/notes/${id}`, { method: "DELETE" });
-  notes.value = notes.value.filter((n) => n.id !== id);
+  removeNote(id);
 }
 
 onMounted(() => {
-  carica();
+  loadNotes();
 });
-
-onUnmounted(() => clearInterval(pollInterval));
 </script>
 
 <style scoped>

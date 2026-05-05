@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 import { useApi } from "../composables/useApi.js";
 
 const { apiFetch } = useApi();
@@ -46,8 +46,16 @@ const message = ref(null);
 let mediaRecorder = null;
 let chunks = [];
 let timer = null;
+let mediaStream = null;
+let messageTimeout = null;
 
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+const audioExtension = computed(() => {
+  if (!blob.value) return "webm";
+  if (blob.value.type.includes("mp4")) return "mp4";
+  if (blob.value.type.includes("ogg")) return "ogg";
+  return "webm";
+});
 
 async function toggle() {
   if (recording.value) {
@@ -64,19 +72,19 @@ function getMimeType() {
 
 async function start() {
   chunks = [];
-  blob.value = null;
-  audioUrl.value = null;
+  resetPreview();
   seconds.value = 0;
 
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mimeType = getMimeType();
-  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+  mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : {});
   mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
   mediaRecorder.onstop = () => {
     const type = mediaRecorder.mimeType || mimeType || "audio/mp4";
     blob.value = new Blob(chunks, { type });
+    revokeAudioUrl();
     audioUrl.value = URL.createObjectURL(blob.value);
-    stream.getTracks().forEach((t) => t.stop());
+    stopMediaStream();
   };
   mediaRecorder.start();
   recording.value = true;
@@ -87,20 +95,19 @@ function stop() {
   mediaRecorder?.stop();
   recording.value = false;
   clearInterval(timer);
+  timer = null;
 }
 
 function scarta() {
-  blob.value = null;
-  audioUrl.value = null;
+  resetPreview();
   seconds.value = 0;
 }
 
 async function invia() {
   if (!blob.value) return;
   uploading.value = true;
-  const ext = blob.value.type.includes("mp4") ? "mp4" : blob.value.type.includes("ogg") ? "ogg" : "webm";
   const form = new FormData();
-  form.append("audio", blob.value, `nota-${Date.now()}.${ext}`);
+  form.append("audio", blob.value, `nota-${Date.now()}.${audioExtension.value}`);
   try {
     const res = await apiFetch("/api/audio", { method: "POST", body: form });
     if (!res.ok) throw new Error();
@@ -115,11 +122,34 @@ async function invia() {
 }
 
 function mostraMessaggio(text, type) {
+  clearTimeout(messageTimeout);
   message.value = { text, type };
-  setTimeout(() => (message.value = null), 3000);
+  messageTimeout = setTimeout(() => (message.value = null), 3000);
 }
 
-onUnmounted(() => clearInterval(timer));
+function resetPreview() {
+  blob.value = null;
+  revokeAudioUrl();
+}
+
+function revokeAudioUrl() {
+  if (audioUrl.value) {
+    URL.revokeObjectURL(audioUrl.value);
+    audioUrl.value = null;
+  }
+}
+
+function stopMediaStream() {
+  mediaStream?.getTracks().forEach((track) => track.stop());
+  mediaStream = null;
+}
+
+onUnmounted(() => {
+  clearInterval(timer);
+  clearTimeout(messageTimeout);
+  revokeAudioUrl();
+  stopMediaStream();
+});
 </script>
 
 <style scoped>
