@@ -91,7 +91,7 @@ async function llamaChat(messages, onStream) {
 
   let fullContent = "";
   let evalCount = 0;
-  let firstTokenTime = null;
+  let tokPerSec = 0;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
@@ -109,18 +109,18 @@ async function llamaChat(messages, onStream) {
       try {
         const chunk = JSON.parse(data);
         const delta = chunk.choices?.[0]?.delta?.content;
-        if (delta) {
-          if (!firstTokenTime) firstTokenTime = Date.now();
-          fullContent += delta;
-          if (onStream) onStream(fullContent);
+        if (delta) { fullContent += delta; if (onStream) onStream(fullContent); }
+        // llama.cpp: timings in final chunk
+        if (chunk.timings?.predicted_n) {
+          evalCount = chunk.timings.predicted_n;
+          tokPerSec = chunk.timings.predicted_per_second || 0;
         }
+        // Ollama / OpenAI: usage in final chunk
         if (chunk.usage?.completion_tokens) evalCount = chunk.usage.completion_tokens;
       } catch {}
     }
   }
 
-  const elapsed = firstTokenTime ? (Date.now() - firstTokenTime) / 1000 : 0;
-  const tokPerSec = elapsed > 0 && evalCount > 0 ? evalCount / elapsed : 0;
   return { content: fullContent.trim(), evalCount, tokPerSec };
 }
 
