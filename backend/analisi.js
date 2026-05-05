@@ -30,6 +30,8 @@ Rispondi SOLO con un JSON valido, senza testo aggiuntivo, senza markdown:
 {"connessioni":[{"tema":"...","note":["data nota 1","data nota 2"],"descrizione":"max 1 frase"}]}
 Se non ci sono connessioni significative rispondi: {"connessioni":[]}`;
 
+const PROMPT_FREE = `Sei un assistente AI. Rispondi sempre in italiano, in modo preciso e conciso.`;
+
 const PROMPT_CHAT = `Sei un assistente personale che risponde a domande sulle note vocali dell'utente.
 Le note sono trascrizioni di messaggi vocali registrati dall'utente in italiano, con data e ora.
 Rispondi sempre in italiano, in modo conciso e diretto.
@@ -241,14 +243,63 @@ async function analyzeType(notes, type, onLog, onStream, noteIds = null) {
   return { ...result, tipi: types, generatoIl: new Date().toISOString(), power };
 }
 
+const STOPWORDS = new Set(["che","del","dei","degli","gli","una","uno","per","con","non","nel","nella","nei","sono","hai","cosa","come","quando","dove","chi","dal","dalla","alle","alla","anche","poi","più","una","questo","questa","questi","queste"]);
+
+function searchNotes(notes, question) {
+  const words = question.toLowerCase()
+    .replace(/[^\wàèéìòùÀÈÉÌÒÙ\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+  if (!words.length) return notes.slice(0, 5);
+  return notes
+    .map((n) => {
+      const text = (n.testo_pulito || n.testo || "").toLowerCase();
+      const score = words.reduce((acc, w) => acc + (text.includes(w) ? 1 : 0), 0);
+      return { n, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((x) => x.n);
+}
+
+async function chatFree(question, history, onLog, onStream) {
+  const startTime = Date.now();
+  const messages = [
+    { role: "system", content: `${PROMPT_FREE}\n\nData e ora attuale: ${currentDateRome()}` },
+    ...history.flatMap((t) => [
+      { role: "user", content: t.user },
+      { role: "assistant", content: t.assistant },
+    ]),
+    { role: "user", content: question },
+  ];
+  emitLog("Rispondo...", startTime, onLog);
+  if (onStream) onStream("");
+  const { content: reply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  if (onStream) onStream("");
+  if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+  return { reply };
+}
+
 async function chatWithNotes(notes, question, history, onLog, onStream) {
   const validNotes = notes.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo));
-  if (!validNotes.length) throw new Error("Nessuna nota disponibile");
   const startTime = Date.now();
-  const context = buildContext(validNotes, true);
+  const relevant = searchNotes(validNotes, question);
+  const notesUsed = relevant.length;
+
+  if (notesUsed === 0) {
+    emitLog("Nessuna nota rilevante — rispondo senza contesto.", startTime, onLog);
+  } else {
+    emitLog(`Trovate ${notesUsed} note rilevanti...`, startTime, onLog);
+  }
+
+  const context = notesUsed > 0 ? buildContext(relevant, true) : "";
+  const systemContent = notesUsed > 0
+    ? `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nNote rilevanti:\n${context}`
+    : `${PROMPT_FREE}\n\nData e ora attuale: ${currentDateRome()}`;
 
   const messages = [
-    { role: "system", content: `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nQueste sono le note vocali dell'utente:\n${context}` },
+    { role: "system", content: systemContent },
     ...history.flatMap((t) => [
       { role: "user", content: t.user },
       { role: "assistant", content: t.assistant },
@@ -256,12 +307,11 @@ async function chatWithNotes(notes, question, history, onLog, onStream) {
     { role: "user", content: question },
   ];
 
-  emitLog("Rispondo...", startTime, onLog);
   if (onStream) onStream("");
   const { content: reply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
   if (onStream) onStream("");
   if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
-  return { reply };
+  return { reply, notesUsed };
 }
 
 async function chatWithRecap(analysis, question, history, onLog, onStream) {
@@ -297,4 +347,4 @@ async function chatWithRecap(analysis, question, history, onLog, onStream) {
   return { reply, patch };
 }
 
-module.exports = { cleanNotes, analyzeType, chatWithNotes, chatWithRecap };
+module.exports = { cleanNotes, analyzeType, chatFree, chatWithNotes, chatWithRecap };

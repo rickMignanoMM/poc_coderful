@@ -413,12 +413,19 @@
     <div v-else class="chat-wrap">
       <div class="chat-messages" ref="chatScrollEl">
         <div v-if="chatMessages.length === 0 && !chatLoading" class="chat-empty">
-          <div class="chat-empty-icon">💬</div>
-          <div>Fai una domanda sulle tue note vocali</div>
+          <div class="chat-empty-icon">{{ chatMode === 'free' ? '🤖' : chatMode === 'notes' ? '📋' : '✏️' }}</div>
+          <div>{{ chatMode === 'free' ? 'Chat diretta con il modello AI' : chatMode === 'notes' ? 'Cerca nelle note vocali' : 'Correggi il recap corrente' }}</div>
           <div class="chat-suggestions">
-            <button class="chip" @click="sendChip('Cosa ho detto oggi?')">Cosa ho detto oggi?</button>
-            <button class="chip" @click="sendChip('Riassumi le note')">Riassumi le note</button>
-            <button class="chip" @click="sendChip('Ci sono appuntamenti o task?')">Appuntamenti o task?</button>
+            <template v-if="chatMode === 'free'">
+              <button class="chip" @click="sendChip('Come funziona il Mixture of Experts?')">Come funziona il MoE?</button>
+              <button class="chip" @click="sendChip('Spiega cos\'è la quantizzazione dei modelli AI')">Cos'è la quantizzazione?</button>
+              <button class="chip" @click="sendChip('Quali sono i vantaggi di eseguire LLM in locale?')">LLM in locale: vantaggi?</button>
+            </template>
+            <template v-else-if="chatMode === 'notes'">
+              <button class="chip" @click="sendChip('Cosa ho detto oggi?')">Cosa ho detto oggi?</button>
+              <button class="chip" @click="sendChip('Riassumi le note più recenti')">Riassumi le note</button>
+              <button class="chip" @click="sendChip('Ci sono appuntamenti o task?')">Appuntamenti o task?</button>
+            </template>
           </div>
         </div>
         <template v-else>
@@ -426,6 +433,7 @@
             <div class="bubble-wrap">
               <div class="bubble">{{ msg.content }}</div>
               <span v-if="msg.patched" class="patch-applied-badge">✓ Recap aggiornato</span>
+              <span v-if="msg.notesUsed > 0" class="notes-used-badge">📋 {{ msg.notesUsed }} nota{{ msg.notesUsed > 1 ? 'e' : '' }}</span>
             </div>
           </div>
           <div v-if="chatLoading" class="bubble-row assistant">
@@ -433,32 +441,33 @@
           </div>
         </template>
       </div>
-      <div v-if="recapMode && analysis" class="recap-sec-bar">
+      <div v-if="chatMode === 'recap' && analysis" class="recap-sec-bar">
         <button
           v-for="s in recapSections" :key="s.key"
           :class="['recap-sec-btn', { active: recapSection === s.key }]"
           @click="recapSection = s.key"
         >{{ s.label }}</button>
       </div>
-      <div class="chat-input-row">
+      <div class="chat-mode-bar">
+        <button :class="['chat-mode-btn', { active: chatMode === 'free' }]" @click="setChatMode('free')">💬 Libera</button>
+        <button :class="['chat-mode-btn', { active: chatMode === 'notes' }]" @click="setChatMode('notes')">📋 Note</button>
         <button
-          class="btn-recap-mode"
-          :class="{ active: recapMode }"
+          :class="['chat-mode-btn', { active: chatMode === 'recap' }]"
           :disabled="!analysis"
-          :title="analysis ? 'Correggi il recap corrente' : 'Esegui prima un\'analisi'"
-          @click="recapMode = !recapMode"
+          :title="!analysis ? 'Esegui prima un\'analisi' : ''"
+          @click="setChatMode('recap')"
         >✏️ Recap</button>
+      </div>
+      <div class="chat-input-row">
         <textarea
           v-model="chatInput"
           class="chat-input"
-          :placeholder="recapMode ? 'Chiedi di correggere il recap...' : 'Chiedi qualcosa sulle tue note...'"
+          :placeholder="chatMode === 'free' ? 'Chatta con il modello...' : chatMode === 'notes' ? 'Cerca nelle note...': 'Chiedi di correggere il recap...'"
           rows="1"
           :disabled="chatLoading"
           @keydown.enter.exact.prevent="sendMessage"
         />
-        <button class="chat-send" :disabled="chatLoading || !chatInput.trim()" @click="sendMessage">
-          ↑
-        </button>
+        <button class="chat-send" :disabled="chatLoading || !chatInput.trim()" @click="sendMessage">↑</button>
       </div>
     </div>
   </div>
@@ -532,8 +541,15 @@ const chatLogs = ref([]);
 const chatScrollEl = ref(null);
 const analysisStreaming = ref("");
 const chatStreaming = ref("");
-const recapMode = ref(false);
+const chatMode = ref("free");
 const recapSection = ref("tutti");
+
+function setChatMode(mode) {
+  if (mode === chatMode.value) return;
+  chatMode.value = mode;
+  chatMessages.value = [];
+  chatHistory.value = [];
+}
 const recapSections = [
   { key: "tutti",         label: "Tutto" },
   { key: "riassunto",    label: "📊 Riassunto" },
@@ -829,14 +845,14 @@ async function sendMessage() {
   chatLoading.value = true;
   chatLogs.value = [];
   try {
-    const useRecap = recapMode.value && analysis.value;
+    const useRecap = chatMode.value === "recap" && analysis.value;
     const endpoint = useRecap ? "/api/chat-recap" : "/api/chat";
     const analysisContext = useRecap
       ? (recapSection.value === "tutti" ? analysis.value : { [recapSection.value]: analysis.value[recapSection.value] })
       : null;
     const body = useRecap
       ? { question, history: chatHistory.value, analysis: analysisContext }
-      : { question, history: chatHistory.value };
+      : { question, history: chatHistory.value, mode: chatMode.value };
     const res = await apiFetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -850,7 +866,7 @@ async function sendMessage() {
         const reply = result.reply || "Nessuna risposta.";
         const patch = result.patch || null;
         if (patch) applyPatch(patch);
-        chatMessages.value.push({ role: "assistant", content: reply, patched: !!patch });
+        chatMessages.value.push({ role: "assistant", content: reply, patched: !!patch, notesUsed: result.notesUsed || 0 });
         chatHistory.value.push({ user: question, assistant: reply });
       },
       (err) => { chatMessages.value.push({ role: "assistant", content: `⚠️ Errore: ${err}` }); },
@@ -1301,9 +1317,11 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .bubble-row.user .bubble { background: #007aff; color: #fff; border-bottom-right-radius: 4px; }
 .bubble-row.assistant .bubble { background: #fff; color: #1d1d1f; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .patch-applied-badge { align-self: flex-start; padding: 4px 10px; background: #e8faea; color: #1a7f37; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.btn-recap-mode { padding: 8px 12px; border: 1.5px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
-.btn-recap-mode:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-recap-mode.active { background: #fff4e5; border-color: #ff9500; color: #ff9500; }
+.chat-mode-bar { display: flex; gap: 6px; padding: 8px 16px 0; }
+.chat-mode-btn { padding: 6px 14px; border: 1.5px solid #e5e5ea; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.chat-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.chat-mode-btn.active { background: #007aff; border-color: #007aff; color: #fff; }
+.notes-used-badge { display: inline-block; font-size: 11px; color: #007aff; background: #e8f0ff; border-radius: 20px; padding: 2px 8px; margin-top: 4px; }
 .recap-sec-bar { display: flex; gap: 6px; padding: 8px 24px 0; flex-wrap: wrap; }
 .recap-sec-btn { padding: 5px 12px; border: 1.5px solid #e5e5ea; border-radius: 20px; background: #fff; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 .recap-sec-btn.active { background: #ff9500; border-color: #ff9500; color: #fff; }

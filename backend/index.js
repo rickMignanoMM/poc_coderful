@@ -6,7 +6,7 @@ const { spawn } = require("child_process");
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
-const { analyzeType, cleanNotes, chatWithNotes, chatWithRecap } = require("./analisi");
+const { analyzeType, cleanNotes, chatFree, chatWithNotes, chatWithRecap } = require("./analisi");
 
 // in-memory job store
 const jobs = {};
@@ -203,12 +203,14 @@ app.post("/api/chat-recap", (req, res) => {
 });
 
 app.post("/api/chat", (req, res) => {
-  const { question, history } = req.body;
+  const { question, history, mode } = req.body;
   if (!question) return res.status(400).json({ error: "Domanda mancante" });
   const jobId = createJob();
   res.json({ jobId });
-  chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
-    .then((result) => updateJob(jobId, "completed", result))
+  const fn = mode === "free"
+    ? chatFree(question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
+    : chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text));
+  fn.then((result) => updateJob(jobId, "completed", result))
     .catch((err) => updateJob(jobId, "failed", null, err.message));
 });
 
