@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Locale su Hardware Consumer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Press+Start+2P&display=swap');
+
+  :root {
+    --bg:      #0d1b2a;
+    --bg2:     #112233;
+    --bg3:     #1a3348;
+    --fg:      #e2f0eb;
+    --fg2:     #8fb8a8;
+    --green:   #52b788;
+    --green2:  #74c69d;
+    --magenta: #ff6b9d;
+    --cyan:    #48cae4;
+    --yellow:  #ffd60a;
+    --border:  #1e3a50;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── DECK ── */
+  #deck {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity .4s ease, transform .4s ease;
+    pointer-events: none;
+    text-align: center;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.out {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* ── SLIDE TYPES ── */
+  .slide-cover { background: radial-gradient(ellipse at 30% 40%, #112233 0%, #0d1b2a 70%); }
+  .slide-content { text-align: left; align-items: flex-start; }
+  .slide-split { flex-direction: row; gap: 48px; align-items: stretch; text-align: left; }
+  .slide-code { text-align: left; align-items: flex-start; }
+
+  /* ── TYPOGRAPHY ── */
+  .kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--fg);
+    margin-bottom: 20px;
+  }
+  h1 span.accent { color: var(--green2); }
+  h1 span.magenta { color: var(--magenta); }
+  h2 {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 32px;
+    line-height: 1.2;
+  }
+  h2 span.accent { color: var(--green2); }
+  h2 span.magenta { color: var(--magenta); }
+  h2 span.cyan { color: var(--cyan); }
+  .subtitle {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--fg2);
+    line-height: 1.5;
+    max-width: 640px;
+  }
+
+  /* ── BULLETS ── */
+  .bullets { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 860px; }
+  .bullet {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--fg);
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .bullet.show { opacity: 1; transform: translateY(0); }
+  .bullet .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    margin-top: 9px;
+  }
+  .bullet .dot.magenta { background: var(--magenta); }
+  .bullet .dot.cyan { background: var(--cyan); }
+  .bullet .dot.yellow { background: var(--yellow); }
+  .bullet strong { color: var(--green2); font-weight: 600; }
+  .bullet em { color: var(--fg2); font-style: normal; font-size: 16px; display: block; margin-top: 4px; }
+
+  /* ── CODE ── */
+  pre, code {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .code-block {
+    background: #060f17;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--green2);
+    width: 100%;
+    overflow: hidden;
+  }
+  .code-block .dim { color: #3a7d5a; }
+  .code-block .hl  { color: var(--yellow); }
+  .code-block .mg  { color: var(--magenta); }
+  .code-block .cy  { color: var(--cyan); }
+
+  /* ── CARDS ── */
+  .cards { display: flex; gap: 24px; width: 100%; }
+  .card {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 16px;
+  }
+  .card-title.magenta { color: var(--magenta); }
+  .card-title.cyan { color: var(--cyan); }
+  .card ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .card li {
+    font-size: 15px;
+    color: var(--fg2);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .card li::before { content: '›'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .card li strong { color: var(--fg); }
+
+  /* ── SPLIT ── */
+  .col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── HARDWARE CARDS ── */
+  .hw-card {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hw-card.tuxedo { border-top: 3px solid #5856d6; }
+  .hw-card.jetson  { border-top: 3px solid var(--green); }
+  .hw-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    align-self: flex-start;
+  }
+  .hw-tag.tuxedo { background: rgba(88,86,214,.2); color: #8b89ff; }
+  .hw-tag.jetson  { background: rgba(82,183,136,.2); color: var(--green2); }
+  .hw-name { font-size: 22px; font-weight: 700; color: var(--fg); }
+  .hw-spec { font-size: 13px; color: var(--fg2); display: flex; flex-direction: column; gap: 6px; }
+  .hw-spec span { display: flex; justify-content: space-between; gap: 12px; }
+  .hw-spec span strong { color: var(--fg); text-align: right; }
+  .hw-vs {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--fg2);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  /* ── METRICS ── */
+  .metrics { display: flex; gap: 20px; }
+  .metric {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .metric-val {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .metric-val.green   { color: var(--green2); }
+  .metric-val.magenta { color: var(--magenta); }
+  .metric-val.cyan    { color: var(--cyan); }
+  .metric-val.yellow  { color: var(--yellow); }
+  .metric-label { font-size: 11px; color: var(--fg2); text-transform: uppercase; letter-spacing: 1.5px; }
+
+  /* ── STACK DIAGRAM ── */
+  .stack { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 820px; }
+  .stack-row {
+    display: flex;
+    gap: 10px;
+  }
+  .stack-box {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  .stack-box .sb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .stack-box .sb-label.green   { color: var(--green); }
+  .stack-box .sb-label.magenta { color: var(--magenta); }
+  .stack-box .sb-label.cyan    { color: var(--cyan); }
+  .stack-box .sb-label.yellow  { color: var(--yellow); }
+  .stack-box .sb-label.purple  { color: #8b89ff; }
+  .stack-box .sb-val { color: var(--fg); font-weight: 500; }
+  .stack-box .sb-sub { color: var(--fg2); font-size: 11px; margin-top: 3px; }
+  .stack-arrow { text-align: center; color: var(--fg2); font-size: 18px; line-height: 1; }
+
+  /* ── MOE DIAGRAM ── */
+  .moe { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+  .moe-row { display: flex; gap: 10px; align-items: center; }
+  .moe-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .moe-box.active { border-color: var(--green); color: var(--green2); }
+  .moe-box.dim { opacity: 0.35; }
+  .moe-box.router { border-color: var(--yellow); color: var(--yellow); min-width: 120px; }
+  .moe-arrow { color: var(--fg2); font-size: 16px; }
+
+  /* ── LOG SIMULATION ── */
+  .log-sim {
+    background: #060f17;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    width: 100%;
+  }
+  .log-line { color: #3a7d5a; margin-bottom: 4px; }
+  .log-line .ts { color: #2d6a4f; margin-right: 8px; }
+  .log-line .hl { color: var(--green2); }
+  .log-line .mg { color: var(--magenta); }
+  .log-line .cy { color: var(--cyan); }
+  .log-line .yw { color: var(--yellow); }
+
+  /* ── POWER BADGE ── */
+  .power-badge-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,214,10,.1);
+    border: 1.5px solid var(--yellow);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--yellow);
+    margin-top: 12px;
+  }
+
+  /* ── QUOTE ── */
+  .big-quote {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--fg);
+    line-height: 1.5;
+    max-width: 800px;
+    text-align: center;
+    position: relative;
+    padding: 0 40px;
+  }
+  .big-quote::before {
+    content: '"';
+    position: absolute;
+    left: 0; top: -10px;
+    font-size: 80px;
+    color: var(--green);
+    opacity: .3;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+  .big-quote em { color: var(--green2); font-style: normal; font-weight: 600; }
+
+  /* ── CONCLUSION ITEMS ── */
+  .concl-items { display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 780px; }
+  .concl-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .concl-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--green);
+    line-height: 1;
+    flex-shrink: 0;
+    width: 36px;
+    text-align: center;
+  }
+  .concl-text { font-size: 17px; line-height: 1.5; color: var(--fg); }
+  .concl-text small { display: block; color: var(--fg2); font-size: 14px; margin-top: 4px; }
+
+  /* ── UI PREVIEW ── */
+  .ui-preview {
+    background: #060f17;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    width: 100%;
+  }
+  .ui-bar {
+    background: var(--bg2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: var(--fg2);
+  }
+  .ui-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .ui-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .ui-pill {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    color: var(--fg2);
+  }
+  .ui-pill.active { background: var(--green); color: #0d1b2a; border-color: var(--green); font-weight: 700; }
+
+  /* ── PROGRESS BAR ── */
+  #progress {
+    position: fixed;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: var(--green);
+    transition: width .35s ease;
+    z-index: 100;
+  }
+
+  /* ── SLIDE COUNTER ── */
+  #counter {
+    position: fixed;
+    bottom: 20px;
+    right: 28px;
+    font-size: 12px;
+    color: var(--fg2);
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+  }
+
+  /* ── NAV HINT ── */
+  #nav-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 28px;
+    font-size: 11px;
+    color: #2d4a3e;
+    z-index: 100;
+  }
+
+  /* ── DIVIDER ── */
+  .divider { width: 48px; height: 3px; background: var(--green); border-radius: 2px; margin: 20px 0; }
+  .divider.magenta { background: var(--magenta); }
+  .divider.cyan    { background: var(--cyan); }
+
+  /* ── TAG ROW ── */
+  .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(82,183,136,.15);
+    color: var(--green2);
+    border: 1px solid rgba(82,183,136,.3);
+  }
+  .tag.magenta { background: rgba(255,107,157,.15); color: var(--magenta); border-color: rgba(255,107,157,.3); }
+  .tag.cyan    { background: rgba(72,202,228,.15); color: var(--cyan); border-color: rgba(72,202,228,.3); }
+  .tag.yellow  { background: rgba(255,214,10,.15); color: var(--yellow); border-color: rgba(255,214,10,.3); }
+  .tag.purple  { background: rgba(139,137,255,.15); color: #8b89ff; border-color: rgba(139,137,255,.3); }
+
+  /* ── SECTION LABEL ── */
+  #section-label {
+    position: fixed;
+    top: 20px;
+    left: 28px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #2d4a3e;
+    z-index: 100;
+    transition: opacity .3s;
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="counter"></div>
+<div id="nav-hint">← → SPAZIO per navigare · F per fullscreen</div>
+<div id="section-label"></div>
+
+<div id="deck">
+
+  <!-- ── SLIDE 1: COVER ── -->
+  <div class="slide slide-cover active" data-section="">
+    <div class="kicker">Magic Motorsport · AI Infrastructure</div>
+    <h1>AI Locale su<br><span class="accent">Hardware Consumer</span></h1>
+    <div class="subtitle">Whisper · llama.cpp · Gemma 4 26B MoE — senza cloud, senza API key, senza mandare un byte fuori dalla rete.</div>
+    <div class="divider" style="margin-top:40px;"></div>
+    <div class="tag-row" style="justify-content:center;">
+      <span class="tag">Intel Core Ultra 7 155H</span>
+      <span class="tag cyan">NVIDIA Jetson Orin</span>
+      <span class="tag yellow">CPU-only inference</span>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 2: HOOK ── -->
+  <div class="slide slide-content" data-section="Introduzione">
+    <div class="kicker">Il punto di partenza</div>
+    <h2>Tre domande</h2>
+    <div class="bullets">
+      <div class="bullet" data-step="1">
+        <div class="dot"></div>
+        <div>Quanti di voi usano ChatGPT per prendere appunti, riassumere meeting, organizzare idee?</div>
+      </div>
+      <div class="bullet" data-step="2">
+        <div class="dot magenta"></div>
+        <div>Quanto vi piacerebbe che girasse sul vostro laptop — <strong>offline, senza abbonamento</strong>?</div>
+      </div>
+      <div class="bullet" data-step="3">
+        <div class="dot cyan"></div>
+        <div>E se poteste misurare esattamente <strong>quanti watt consuma</strong> per rispondervi?</div>
+      </div>
+      <div class="bullet" data-step="4">
+        <div class="dot yellow"></div>
+        <div style="font-size:22px; font-weight:700; color: var(--green2);">Oggi lo facciamo — dal vivo.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 3: HARDWARE ── -->
+  <div class="slide slide-split" data-section="Hardware">
+    <div class="hw-card tuxedo">
+      <span class="hw-tag tuxedo">CPU Only</span>
+      <div class="hw-name">Tuxedo PC</div>
+      <div class="hw-spec">
+        <span>CPU <strong>Intel Core Ultra 7 155H</strong></span>
+        <span>Core <strong>6P + 8E + 2LP = 22 thread</strong></span>
+        <span>RAM <strong>64 GB LPDDR5X</strong></span>
+        <span>GPU <strong>Arc iGPU — non utilizzata</strong></span>
+        <span>Modello <strong>Gemma 4 26B-A4B Q4_K_M</strong></span>
+        <span>Runtime <strong>llama.cpp · solo CPU</strong></span>
+      </div>
+      <div class="tag-row">
+        <span class="tag purple">Flash Attention</span>
+        <span class="tag purple">KV Cache q8_0</span>
+        <span class="tag purple">P-core only</span>
+      </div>
+    </div>
+    <div class="hw-vs">VS</div>
+    <div class="hw-card jetson">
+      <span class="hw-tag jetson">Edge GPU</span>
+      <div class="hw-name">Jetson Orin</div>
+      <div class="hw-spec">
+        <span>CPU <strong>ARM Cortex-A78AE</strong></span>
+        <span>GPU <strong>Ampere — 1024 CUDA core</strong></span>
+        <span>RAM <strong>Unified Memory</strong></span>
+        <span>Power <strong>MAXN mode · jetson_clocks</strong></span>
+        <span>Modello <strong>Qwen3 30B-A3B Q4_K_M</strong></span>
+        <span>Runtime <strong>Ollama · GPU offload</strong></span>
+      </div>
+      <div class="tag-row">
+        <span class="tag">Flash Attention</span>
+        <span class="tag">KV Cache q8_0</span>
+        <span class="tag">INA sensor</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 4: TRASCRIZIONE ── -->
+  <div class="slide slide-content" data-section="Demo · Trascrizione">
+    <div class="kicker">Demo 1 di 4</div>
+    <h2>Registrazione &amp; <span class="accent">Trascrizione</span></h2>
+    <div class="cards">
+      <div class="card" style="flex:1.2">
+        <div class="card-title">Come funziona</div>
+        <ul>
+          <li>Registra dal browser o carica un file MP3</li>
+          <li>Il backend converte in WAV 16 kHz mono via <strong>ffmpeg</strong></li>
+          <li>Invia al Whisper server su <code>:8765</code></li>
+          <li>Risultato: testo trascritto in pochi secondi</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title cyan">Whisper Server Persistente</div>
+        <ul>
+          <li>Modello caricato <strong>una sola volta</strong> all'avvio</li>
+          <li>Nessun cold start da 5–10s per richiesta</li>
+          <li><strong>large-v3-turbo</strong> · beam_size=1</li>
+          <li>HTTP server su <code>:8765</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="log-sim" style="margin-top:24px;">
+      <div class="log-line"><span class="ts">[node]</span> POST /api/audio → <span class="hl">ffmpeg</span> convert → <span class="hl">whisper:8765</span></div>
+      <div class="log-line"><span class="ts">[whisper]</span> <span class="cy">transcribe</span>(large-v3-turbo, beam=1, vad=true)</div>
+      <div class="log-line"><span class="ts">[whisper]</span> → <span class="yw">"Oggi ho parlato con il cliente riguardo alla scadenza del 15..."</span></div>
+      <div class="log-line"><span class="ts">[node]</span> status: <span class="hl">completata</span> ✓</div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 5: ANALISI ── -->
+  <div class="slide slide-content" data-section="Demo · Analisi AI">
+    <div class="kicker">Demo 2 di 4</div>
+    <h2>Pulizia &amp; <span class="accent">Analisi AI</span></h2>
+    <div class="log-sim">
+      <div class="log-line"><span class="ts">[00:03]</span> Pulisco nota 1/3... <span class="cy">→ testo_pulito + sintesi + sentiment</span></div>
+      <div class="log-line"><span class="ts">[00:11]</span> <span class="hl">↳ 248 tok · 19.2 tok/s</span></div>
+      <div class="log-line"><span class="ts">[00:12]</span> 1/4 <span class="mg">eventi e task</span>...</div>
+      <div class="log-line"><span class="ts">[00:28]</span> 2/4 <span class="mg">riassunto</span>...</div>
+      <div class="log-line"><span class="ts">[00:41]</span> 3/4 <span class="mg">suggerimenti</span>...</div>
+      <div class="log-line"><span class="ts">[00:55]</span> 4/4 <span class="mg">connessioni</span>...</div>
+      <div class="log-line"><span class="ts">[01:08]</span> <span class="hl">↳ 1.124 tok · 18.7 tok/s</span> · <span class="yw">14.2 W · 965 J</span></div>
+      <div class="log-line"><span class="ts">[01:08]</span> Analisi completata <span class="hl">✓</span></div>
+    </div>
+    <div class="power-badge-demo">⚡ 14.2 W &nbsp;·&nbsp; 18.7 tok/s &nbsp;·&nbsp; 68s</div>
+    <div class="tag-row" style="margin-top:20px;">
+      <span class="tag">📅 Eventi &amp; task</span>
+      <span class="tag">📊 Riassunto</span>
+      <span class="tag">💡 Suggerimenti</span>
+      <span class="tag">🔗 Connessioni</span>
+      <span class="tag magenta">✏️ Modifica inline</span>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 6: CHAT ── -->
+  <div class="slide slide-content" data-section="Demo · Chat">
+    <div class="kicker">Demo 3 di 4</div>
+    <h2>Chat <span class="accent">Tre Modalità</span></h2>
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">💬 Libera</div>
+        <ul>
+          <li>Dialogo diretto col modello</li>
+          <li>Nessun contesto iniettato</li>
+          <li>Come ChatGPT — ma locale</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title cyan">📋 Note</div>
+        <ul>
+          <li>Keyword search sulle trascrizioni</li>
+          <li>Top-5 note rilevanti come contesto</li>
+          <li><em style="color:var(--fg2)">"Di cosa ho parlato lunedì?"</em></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title magenta">✏️ Recap</div>
+        <ul>
+          <li>Modifica interattiva dell'analisi</li>
+          <li>Risponde e applica una <strong>patch JSON</strong></li>
+          <li><em style="color:var(--fg2)">"Rendi il tono più formale"</em></li>
+        </ul>
+      </div>
+    </div>
+    <div class="log-sim" style="margin-top:20px;">
+      <div class="log-line" style="color: var(--fg2);">utente: <span class="yw">"Di cosa ho parlato la settimana scorsa riguardo al budget?"</span></div>
+      <div class="log-line"><span class="ts">[chat]</span> searchNotes → <span class="hl">3 note rilevanti</span> trovate</div>
+      <div class="log-line"><span class="ts">[chat]</span> context injected → llama-server → <span class="cy">streaming response...</span></div>
+      <div class="log-line" style="color:var(--cyan);">▋ Il 14 maggio hai discusso della revisione del budget Q3...</div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 7: BENCHMARK ── -->
+  <div class="slide slide-content" data-section="Demo · Benchmark">
+    <div class="kicker">Demo 4 di 4</div>
+    <h2>Benchmark Live <span class="cyan">CPU vs Jetson</span></h2>
+    <div class="bullets">
+      <div class="bullet show">
+        <div class="dot"></div>
+        <div>Dal <strong>device badge</strong> in basso: switch backend da Tuxedo a Jetson in un click</div>
+      </div>
+      <div class="bullet show">
+        <div class="dot cyan"></div>
+        <div>Stessa analisi, stessi prompt → confronto diretto sui <strong>power badge</strong></div>
+      </div>
+    </div>
+    <div class="metrics" style="margin-top:28px;">
+      <div class="metric">
+        <div class="kicker" style="font-size:10px;">Tuxedo CPU</div>
+        <div class="metric-val purple" style="color:#8b89ff;">~19</div>
+        <div class="metric-label">tok/s</div>
+      </div>
+      <div class="metric">
+        <div class="kicker" style="font-size:10px;">Tuxedo CPU</div>
+        <div class="metric-val yellow">~14</div>
+        <div class="metric-label">Watt (RAPL)</div>
+      </div>
+      <div class="metric" style="border-color: var(--border); background: #060f17; opacity:.5; font-style:italic;">
+        <div class="kicker" style="font-size:10px; color: var(--green);">Jetson GPU</div>
+        <div class="metric-val green">?</div>
+        <div class="metric-label">live durante la demo</div>
+      </div>
+    </div>
+    <div class="bullets" style="margin-top:24px;">
+      <div class="bullet show">
+        <div class="dot yellow"></div>
+        <div>La metrica più interessante: <strong>tok / joule</strong> — non solo la velocità</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 8: STACK ── -->
+  <div class="slide slide-content" data-section="Under the hood">
+    <div class="kicker">Architettura</div>
+    <h2>Lo <span class="accent">Stack</span></h2>
+    <div class="stack">
+      <div class="stack-row">
+        <div class="stack-box">
+          <div class="sb-label green">Frontend</div>
+          <div class="sb-val">Vue 3 + Vite</div>
+          <div class="sb-sub">SSE polling · HTTPS · PWA-ready · Mobile</div>
+        </div>
+        <div class="stack-box">
+          <div class="sb-label purple">Backend</div>
+          <div class="sb-val">Node.js + Express</div>
+          <div class="sb-sub">Job store in memoria · mkcert · multer</div>
+        </div>
+      </div>
+      <div class="stack-arrow">↓</div>
+      <div class="stack-row">
+        <div class="stack-box">
+          <div class="sb-label magenta">LLM</div>
+          <div class="sb-val">llama.cpp · Gemma 4 26B-A4B</div>
+          <div class="sb-sub">Q4_K_M · Flash Attn · KV q8_0 · taskset 0-11 · governor=performance</div>
+        </div>
+        <div class="stack-box">
+          <div class="sb-label cyan">Trascrizione</div>
+          <div class="sb-val">faster-whisper · large-v3-turbo</div>
+          <div class="sb-sub">HTTP server persistente :8765 · CTranslate2 · 8 thread</div>
+        </div>
+      </div>
+      <div class="stack-arrow">↓</div>
+      <div class="stack-row">
+        <div class="stack-box">
+          <div class="sb-label yellow">Energia Intel</div>
+          <div class="sb-val">RAPL · /sys/class/powercap</div>
+          <div class="sb-sub">Watt, joule, tok/joule — nessun tool esterno</div>
+        </div>
+        <div class="stack-box">
+          <div class="sb-label green">Energia Jetson</div>
+          <div class="sb-val">INA hwmon · /sys/class/hwmon</div>
+          <div class="sb-sub">Stessa metrica, hardware diverso</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 9: CPU OPT ── -->
+  <div class="slide slide-content" data-section="Ottimizzazioni CPU">
+    <div class="kicker">Dettaglio tecnico</div>
+    <h2>Perché <span class="accent">P-core only</span> è più veloce</h2>
+    <div class="bullets">
+      <div class="bullet show">
+        <div class="dot yellow"></div>
+        <div>Intel Core Ultra 7 155H: <strong>6 P-core (×2 HT = 12)</strong> + 8 E-core + 2 LP-core<br>
+        <em>Con 20 thread, gli E-core "rallentano" gli altri: il layer aspetta lo straggler più lento</em></div>
+      </div>
+      <div class="bullet show">
+        <div class="dot magenta"></div>
+        <div><code>taskset -c 0-11</code> pinna llama.cpp ai soli P-core<br>
+        <em>Risultato: analisi 10s più veloce rispetto a --threads 20</em></div>
+      </div>
+      <div class="bullet show">
+        <div class="dot"></div>
+        <div>CPU governor: <strong>powersave → performance</strong><br>
+        <em>Senza: il processore gira al 50% della frequenza massima. La ventola non parte nemmeno.</em></div>
+      </div>
+    </div>
+    <div class="code-block" style="margin-top:24px; max-width:700px;">
+      <span class="dim"># start-llama.sh</span><br>
+      taskset -c <span class="hl">0-11</span> llama-server \<br>
+      &nbsp;&nbsp;--threads <span class="hl">12</span> --threads-batch <span class="hl">12</span> \<br>
+      &nbsp;&nbsp;--batch-size <span class="hl">512</span> --mlock \<br>
+      &nbsp;&nbsp;--flash-attn on --cache-type-k <span class="mg">q8_0</span>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 10: MOE ── -->
+  <div class="slide slide-content" data-section="Gemma 4 MoE">
+    <div class="kicker">Perché funziona su CPU</div>
+    <h2>Mixture of Experts — <span class="accent">26B param, ~4B attivi</span></h2>
+    <div class="moe">
+      <div class="moe-row">
+        <div class="moe-box" style="min-width:160px; border-color:var(--cyan); color:var(--cyan);">Input token</div>
+        <div class="moe-arrow">→</div>
+        <div class="moe-box router">Router</div>
+        <div class="moe-arrow">→</div>
+        <div class="moe-box" style="display:flex; gap:8px;">
+          <div class="moe-box active">Expert 2</div>
+          <div class="moe-box active">Expert 7</div>
+          <div class="moe-box dim">Expert 1</div>
+          <div class="moe-box dim">Expert 4</div>
+          <div class="moe-box dim">Expert 6</div>
+        </div>
+      </div>
+    </div>
+    <div class="bullets" style="margin-top:28px; max-width:760px;">
+      <div class="bullet show">
+        <div class="dot yellow"></div>
+        <div>Il router impara quali expert attivare tramite backprop + auxiliary loss — <strong>solo 2/8 expert per token</strong></div>
+      </div>
+      <div class="bullet show">
+        <div class="dot"></div>
+        <div>Velocità da modello <strong>4B</strong>, qualità da modello <strong>26B</strong> — è questo il vantaggio competitivo su CPU</div>
+      </div>
+      <div class="bullet show">
+        <div class="dot magenta"></div>
+        <div>Fine-tuned multilingua: capisce italiano parlato, accenti, frasi incomplete da trascrizione audio</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 11: CONCLUSIONI ── -->
+  <div class="slide slide-content" data-section="Conclusioni">
+    <div class="kicker">Takeaway</div>
+    <h2>Tre cose da portare a casa</h2>
+    <div class="concl-items">
+      <div class="concl-item">
+        <div class="concl-num">1</div>
+        <div class="concl-text">L'AI locale è già oggi praticabile per use case reali
+          <small>Non è un esperimento di laboratorio — gira su un laptop da scaffale, misurabile in watt</small>
+        </div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-num" style="color:var(--magenta);">2</div>
+        <div class="concl-text">La topologia CPU conta quanto il modello
+          <small>taskset, governor, thread count: senza ottimizzazioni si lascia il 30–40% delle performance sul tavolo</small>
+        </div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-num" style="color:var(--cyan);">3</div>
+        <div class="concl-text">La metrica giusta è <strong>tok/joule</strong>, non tok/s
+          <small>Velocità e efficienza energetica divergono — la scelta della piattaforma dipende dal contesto</small>
+        </div>
+      </div>
+    </div>
+    <div class="tag-row" style="margin-top:24px;">
+      <span class="tag">Trascrizione streaming</span>
+      <span class="tag cyan">Benchmark panel affiancato</span>
+      <span class="tag magenta">Multi-utente</span>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 12: Q&A ── -->
+  <div class="slide slide-cover" data-section="">
+    <div class="kicker">Fine</div>
+    <h1 style="font-size:64px;">Q&amp;A</h1>
+    <div class="subtitle" style="margin-top:16px;">Il codice è su GitHub &nbsp;·&nbsp; La demo gira live</div>
+    <div class="divider" style="margin-top:32px;"></div>
+    <div class="tag-row" style="justify-content:center; margin-top:20px;">
+      <span class="tag yellow">👾 Premi il bottone nell'header per la modalità 8-bit</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const progress = document.getElementById('progress');
+  const counter  = document.getElementById('counter');
+  const sectionLabel = document.getElementById('section-label');
+  let current = 0;
+
+  function showSlide(idx) {
+    const prev = current;
+    current = Math.max(0, Math.min(slides.length - 1, idx));
+    if (prev === current) return;
+
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('out');
+    setTimeout(() => slides[prev].classList.remove('out'), 400);
+
+    slides[current].classList.add('active');
+
+    // reset bullets on new slide
+    slides[current].querySelectorAll('.bullet').forEach(b => b.classList.remove('show'));
+
+    updateUI();
+  }
+
+  function updateUI() {
+    const pct = ((current) / (slides.length - 1)) * 100;
+    progress.style.width = pct + '%';
+    counter.textContent = `${current + 1} / ${slides.length}`;
+    sectionLabel.textContent = slides[current].dataset.section || '';
+  }
+
+  // Step-by-step bullets
+  function stepBullets() {
+    const active = slides[current];
+    const bullets = Array.from(active.querySelectorAll('.bullet[data-step]'))
+      .filter(b => !b.classList.contains('show'))
+      .sort((a, b) => +a.dataset.step - +b.dataset.step);
+    if (bullets.length > 0) {
+      bullets[0].classList.add('show');
+      return true; // consumed
+    }
+    return false;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!stepBullets()) showSlide(current + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      showSlide(current - 1);
+    }
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) dx < 0 ? showSlide(current + 1) : showSlide(current - 1);
+  });
+
+  // Click zones
+  document.addEventListener('click', e => {
+    if (e.clientX > window.innerWidth / 2) {
+      if (!stepBullets()) showSlide(current + 1);
+    } else {
+      showSlide(current - 1);
+    }
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
