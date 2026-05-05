@@ -5,13 +5,14 @@ import subprocess
 import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from faster_whisper import WhisperModel
 
 MODEL = os.environ.get("WHISPER_MODEL", "large-v3-turbo")
 PORT  = int(os.environ.get("WHISPER_PORT", "8765"))
 
 print(f"Carico modello {MODEL}...", flush=True)
-CPU_THREADS = int(os.environ.get("WHISPER_THREADS", str(os.cpu_count() or 4)))
+CPU_THREADS = int(os.environ.get("WHISPER_THREADS", str(min(os.cpu_count() or 4, 8))))
 
 try:
     model = WhisperModel(MODEL, device="cuda", compute_type="float16")
@@ -67,5 +68,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'{"status":"ok"}')
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
 print(f"Whisper server pronto su http://127.0.0.1:{PORT}", flush=True)
-HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+ThreadedHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
