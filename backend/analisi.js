@@ -1,19 +1,12 @@
 const AI_BASE_URL = process.env.AI_BASE_URL || "http://127.0.0.1:8080";
 const AI_MODEL = process.env.AI_MODEL || "local";
 
-const PROMPT_PULIZIA = `Sei un correttore di trascrizioni audio in italiano.
-Il testo potrebbe contenere parole storpiate, frasi incomplete, ripetizioni o errori di trascrizione automatica.
-Correggi il testo rendendolo naturale e leggibile in italiano, mantenendo il significato originale.
-Se una parola è chiaramente sbagliata, correggila con quella più probabile nel contesto.
-Rispondi SOLO con il testo corretto, senza spiegazioni.`;
-
-const PROMPT_SINTESI = `Riassumi questa nota vocale in italiano in 1-2 frasi concise.
-Mantieni le informazioni chiave: chi, cosa, quando, dove, decisioni prese, task menzionati.
-Rispondi SOLO con il testo del riassunto, senza prefissi o spiegazioni.`;
-
-const PROMPT_SENTIMENT = `Analizza il tono emotivo di questa nota vocale in italiano.
-Rispondi SOLO con un JSON valido, senza testo aggiuntivo, senza markdown:
-{"tono":"positivo|negativo|neutro|stressato|entusiasta|preoccupato|riflessivo","emoji":"😊|😟|😐|😰|🚀|😨|🤔","label":"max 2 parole"}`;
+const PROMPT_PULIZIA_COMPLETA = `Sei un assistente che elabora trascrizioni audio in italiano.
+Dato un testo trascritto automaticamente, restituisci un JSON con tre campi:
+- "testo_pulito": il testo corretto e leggibile (correggi parole storpiate, ripetizioni, errori di trascrizione)
+- "sintesi": riassunto in 1-2 frasi concise con chi, cosa, quando, decisioni, task
+- "sentiment": oggetto con tono emotivo {"tono":"positivo|negativo|neutro|stressato|entusiasta|preoccupato|riflessivo","emoji":"😊|😟|😐|😰|🚀|😨|🤔","label":"max 2 parole"}
+Rispondi SOLO con il JSON valido, senza testo aggiuntivo, senza markdown.`;
 
 const PROMPT_EVENTI = `Sei un assistente che analizza note vocali trascritte in italiano.
 Estrai tutti gli eventi, appuntamenti, scadenze e task da schedulare.
@@ -164,7 +157,7 @@ function buildContext(notes, useSummary = false) {
 }
 
 async function cleanNotes(notes, onLog, onStream) {
-  const toClean = notes.filter((n) => n.testo && n.status === "completata");
+  const toClean = notes.filter((n) => n.testo && n.status === "completata" && !n.testo_pulito);
   if (!toClean.length) throw new Error("Nessuna nota da pulire");
   const startTime = Date.now();
   const cleanedNotes = [];
@@ -174,19 +167,19 @@ async function cleanNotes(notes, onLog, onStream) {
     emitLog(`Pulisco nota ${i + 1}/${toClean.length}...`, startTime, onLog);
     if (onStream) onStream("");
 
-    const [
-      { content, evalCount, tokPerSec },
-      { content: rawSentiment },
-      { content: summary },
-    ] = await Promise.all([
-      llamaChat([{ role: "system", content: PROMPT_PULIZIA }, { role: "user", content: n.testo }], onStream),
-      llamaChat([{ role: "user", content: `${PROMPT_SENTIMENT}\n\n${n.testo}` }], null),
-      llamaChat([{ role: "system", content: PROMPT_SINTESI }, { role: "user", content: n.testo }], null),
-    ]);
+    const { content, evalCount, tokPerSec } = await llamaChat(
+      [{ role: "user", content: `${PROMPT_PULIZIA_COMPLETA}\n\nTesto da elaborare:\n${n.testo}` }],
+      onStream
+    );
 
     if (onStream) onStream("");
-    const sentiment = extractJson(rawSentiment) || { tono: "neutro", emoji: "😐", label: "neutro" };
-    cleanedNotes.push({ id: n.id, testo_pulito: content, sentiment, sintesi: summary.trim() });
+    const parsed = extractJson(content) || {};
+    cleanedNotes.push({
+      id: n.id,
+      testo_pulito: parsed.testo_pulito || content,
+      sintesi: parsed.sintesi || "",
+      sentiment: parsed.sentiment || { tono: "neutro", emoji: "😐", label: "neutro" },
+    });
     if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
   }
   return { cleanedNotes };
