@@ -70,7 +70,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use("/audio", express.static(UPLOADS_DIR));
 app.use(express.static(path.join(__dirname, "../frontend/dist")));

@@ -31,10 +31,10 @@ def preprocessa(wav_path: str) -> str:
     audio, sr = sf.read(wav_path)
     audio = audio.astype(np.float32)
 
-    print("  → Riduzione rumore...", flush=True)
+    print("  → Riduzione rumore...", file=sys.stderr, flush=True)
     audio = riduci_rumore(audio, sr)
 
-    print("  → Normalizzazione volume...", flush=True)
+    print("  → Normalizzazione volume...", file=sys.stderr, flush=True)
     audio = normalizza(audio)
 
     tmp = tempfile.NamedTemporaryFile(suffix="_clean.wav", delete=False)
@@ -47,10 +47,10 @@ def carica_modello():
     # CTranslate2 usa CUDA nativo senza dipendenze aggiuntive
     try:
         model = WhisperModel(MODEL, device="cuda", compute_type="float16")
-        print("  → Modello caricato su CUDA", flush=True)
+        print("  → Modello caricato su CUDA", file=sys.stderr, flush=True)
     except Exception:
         model = WhisperModel(MODEL, device="cpu", compute_type="int8")
-        print("  → Modello caricato su CPU", flush=True)
+        print("  → Modello caricato su CPU", file=sys.stderr, flush=True)
     return model
 
 
@@ -60,10 +60,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     audio = sys.argv[1]
-    print(f"Carico il modello {MODEL}...", flush=True)
+    print(f"Carico il modello {MODEL}...", file=sys.stderr, flush=True)
     model = carica_modello()
 
-    print(f"\nPreprocesso: {audio}", flush=True)
+    print(f"\nPreprocesso: {audio}", file=sys.stderr, flush=True)
     wav_tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
     wav_tmp.close()
     converti_in_wav(audio, wav_tmp.name)
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     os.unlink(wav_tmp.name)
 
     try:
-        print("\nTrascrivo...", flush=True)
+        print("\nTrascrivo...", file=sys.stderr, flush=True)
         segments, info = model.transcribe(
             clean_wav,
             language="it",
@@ -103,5 +103,5 @@ if __name__ == "__main__":
         f.write(testo_completo)
     with open(f"{base}_timestamp.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(righe))
-    print(f"\nSalvato: {base}_testo.txt")
-    print(f"Salvato: {base}_timestamp.txt")
+    print(f"\nSalvato: {base}_testo.txt", file=sys.stderr)
+    print(f"Salvato: {base}_timestamp.txt", file=sys.stderr)
