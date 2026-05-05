@@ -17,10 +17,15 @@ else
   echo "Ollama già in ascolto."
 fi
 
-# Carica modello in memoria (warm-up)
-echo "Carico qwen3:14b in memoria..."
-curl -s -X POST http://127.0.0.1:11434/api/generate \
-  -d '{"model":"qwen3:14b","prompt":"ciao","stream":false}' > /dev/null 2>&1 &
+# Avvia ngrok se non attivo
+if ! curl -s http://127.0.0.1:4040/api/tunnels > /dev/null 2>&1; then
+  echo "Avvio ngrok (obtain-crave-glider.ngrok-free.dev)..."
+  ~/.local/bin/ngrok http --url=obtain-crave-glider.ngrok-free.dev 3000 > /tmp/ngrok.log 2>&1 &
+  sleep 3
+  echo "ngrok avviato."
+else
+  echo "ngrok già in ascolto."
+fi
 
 echo "Avvio backend Node.js..."
 cd "$DIR/backend"
