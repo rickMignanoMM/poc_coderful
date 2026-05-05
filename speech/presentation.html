@@ -882,7 +882,53 @@
     </div>
   </div>
 
-  <!-- ── SLIDE 11: CONCLUSIONI ── -->
+  <!-- ── SLIDE 11: MoE + BANDWIDTH ── -->
+  <div class="slide slide-content" data-section="Gemma 4 MoE">
+    <div class="kicker">Perché il Mac fa 200 tok/s con lo stesso modello</div>
+    <h2>MoE + <span class="accent">Memory Bandwidth</span></h2>
+    <div class="bullets">
+      <div class="bullet show">
+        <div class="dot yellow"></div>
+        <div>Con MoE il compute per token è quello di un <strong>4B denso</strong> — il bottleneck non è la CPU, è <strong>caricare i pesi dalla RAM</strong></div>
+      </div>
+      <div class="bullet show">
+        <div class="dot cyan"></div>
+        <div>Apple Silicon ha memoria unificata CPU+GPU sullo <strong>stesso bus ad alta velocità</strong> — la GPU usa la RAM system senza copia</div>
+      </div>
+      <div class="bullet show">
+        <div class="dot magenta"></div>
+        <div>Il Tuxedo ha una <strong>iGPU Intel Arc</strong> integrata — ma non la stiamo usando. E anche attivandola, condivide lo stesso LPDDR5X.</div>
+      </div>
+    </div>
+    <div class="cards" style="margin-top:28px;">
+      <div class="card" style="border-top: 3px solid #8b89ff;">
+        <div class="card-title" style="color:#8b89ff;">Tuxedo · Intel LPDDR5X</div>
+        <ul>
+          <li><strong>~77 GB/s</strong> bandwidth totale</li>
+          <li>Condiviso tra CPU e iGPU</li>
+          <li>CPU-only: nessun overhead di scheduling GPU</li>
+          <li>~19 tok/s con Gemma 4 26B Q4</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--green2);">
+        <div class="card-title">Apple Silicon (M4 Pro)</div>
+        <ul>
+          <li><strong>~273 GB/s</strong> bandwidth (M4 Pro)</li>
+          <li>CPU e GPU sullo stesso die</li>
+          <li>Metal backend in llama.cpp / MLX</li>
+          <li>~200 tok/s con Gemma 4 26B Q4</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bullets" style="margin-top:20px; max-width:760px;">
+      <div class="bullet show">
+        <div class="dot"></div>
+        <div>La differenza non è il modello — è l'<strong>architettura di memoria</strong>. Intel separa CPU/GPU con un bus più stretto; Apple le fonde in un unico pool.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 13: CONCLUSIONI ── -->
   <div class="slide slide-content" data-section="Conclusioni">
     <div class="kicker">Takeaway</div>
     <h2>Tre cose da portare a casa</h2>
@@ -913,7 +959,7 @@
     </div>
   </div>
 
-  <!-- ── SLIDE 12: Q&A ── -->
+  <!-- ── SLIDE 14: Q&A ── -->
   <div class="slide slide-cover" data-section="">
     <div class="kicker">Fine</div>
     <h1 style="font-size:64px;">Q&amp;A</h1>
