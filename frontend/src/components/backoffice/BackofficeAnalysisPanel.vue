@@ -8,10 +8,28 @@
         </span>
       </div>
       <div class="analisi-header-actions">
+        <button class="btn-email-recap" @click="showEmailModal = true" title="Invia via mail">📧</button>
         <button class="btn-collapse-panel" @click="$emit('toggle-collapsed')">
           {{ collapsed ? "▼ Espandi" : "▲ Riduci" }}
         </button>
         <button class="close-btn" @click="$emit('close')">✕</button>
+      </div>
+    </div>
+
+    <!-- Email modal -->
+    <div v-if="showEmailModal" class="email-modal-overlay" @click.self="showEmailModal = false">
+      <div class="email-modal">
+        <div class="email-modal-header">
+          <span>📧 Invia via mail</span>
+          <button class="close-btn" @click="showEmailModal = false">✕</button>
+        </div>
+        <pre class="email-preview">{{ formatEmailText(analysis) }}</pre>
+        <div class="email-modal-actions">
+          <button class="btn-copy-email" :class="{ copied: emailCopied }" @click="copyEmailText(analysis)">
+            {{ emailCopied ? '✓ Copiato!' : '📋 Copia testo' }}
+          </button>
+          <button class="btn-mailto" @click="openMailto(analysis)">✉️ Apri nel client mail</button>
+        </div>
       </div>
     </div>
 
@@ -143,6 +161,83 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
+
+const showEmailModal = ref(false);
+const emailCopied = ref(false);
+
+function formatEmailText(analysis) {
+  const lines = [];
+  const date = analysis.generatoIl
+    ? new Date(analysis.generatoIl).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '';
+
+  lines.push(`ANALISI AI — ${date}`);
+  lines.push('');
+
+  if (analysis.riassunto) {
+    lines.push('RIASSUNTO');
+    lines.push('─────────────────────');
+    if (analysis.riassunto.contesto) lines.push(`Contesto: ${analysis.riassunto.contesto}`);
+    if (analysis.riassunto.tono)     lines.push(`Tono: ${analysis.riassunto.tono}`);
+    if (analysis.riassunto.argomenti?.length) lines.push(`Argomenti: ${analysis.riassunto.argomenti.join(', ')}`);
+    if (analysis.riassunto.sintesi)  lines.push('', analysis.riassunto.sintesi);
+    lines.push('');
+  }
+
+  if (analysis.eventi?.eventi?.length) {
+    lines.push('EVENTI & TASK');
+    lines.push('─────────────────────');
+    for (const ev of analysis.eventi.eventi) {
+      lines.push(`• ${ev.titolo}${ev.priorita ? ` [${ev.priorita}]` : ''}`);
+      if (ev.data)     lines.push(`  Data: ${ev.data}`);
+      if (ev.contesto) lines.push(`  ${ev.contesto}`);
+    }
+    lines.push('');
+  }
+
+  if (analysis.suggerimenti?.suggerimenti?.length) {
+    lines.push('SUGGERIMENTI');
+    lines.push('─────────────────────');
+    for (const s of analysis.suggerimenti.suggerimenti) {
+      lines.push(`• ${s.titolo}${s.priorita ? ` [${s.priorita}]` : ''}`);
+      if (s.descrizione) lines.push(`  ${s.descrizione}`);
+    }
+    lines.push('');
+  }
+
+  if (analysis.connessioni?.connessioni?.length) {
+    lines.push('CONNESSIONI TEMATICHE');
+    lines.push('─────────────────────');
+    for (const c of analysis.connessioni.connessioni) {
+      lines.push(`• ${c.tema}`);
+      if (c.descrizione)  lines.push(`  ${c.descrizione}`);
+      if (c.note?.length) lines.push(`  Note: ${c.note.join(', ')}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('─────────────────────');
+  lines.push(`Generato il ${date} · AI locale`);
+
+  return lines.join('\n');
+}
+
+async function copyEmailText(analysis) {
+  await navigator.clipboard.writeText(formatEmailText(analysis));
+  emailCopied.value = true;
+  setTimeout(() => { emailCopied.value = false; }, 2000);
+}
+
+function openMailto(analysis) {
+  const date = analysis.generatoIl
+    ? new Date(analysis.generatoIl).toLocaleDateString('it-IT')
+    : '';
+  const subject = encodeURIComponent(`Analisi AI — ${analysis.riassunto?.contesto || date}`);
+  const body = encodeURIComponent(formatEmailText(analysis).slice(0, 1800));
+  window.open(`mailto:?subject=${subject}&body=${body}`);
+}
+
 defineProps({
   analysis: { type: Object, required: true },
   collapsed: { type: Boolean, default: false },
