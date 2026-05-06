@@ -35,9 +35,10 @@ sudo apt-get install -y ffmpeg nodejs npm
 
 ### 3. Python — Whisper
 
+Su Lightning sei gia' dentro un ambiente Python gestito dalla piattaforma, quindi non creare un `venv` aggiuntivo.
+
 ```bash
-python3 -m venv venv
-venv/bin/pip install -q faster-whisper
+python -m pip install -q faster-whisper
 ```
 
 ### 4. Node — backend e frontend
@@ -64,6 +65,8 @@ cd ..
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
+Se il daemon Ollama e' gia' in ascolto su `:11434`, `start-cloud.sh` usa direttamente l'API HTTP anche quando il comando `ollama` non e' nel `PATH`.
+
 ### 7. Configura `.env`
 
 ```bash
@@ -75,6 +78,7 @@ Modifica `backend/.env`:
 ```env
 AI_BASE_URL=http://127.0.0.1:11434
 AI_MODEL=gemma4:26b
+WHISPER_MODEL=small
 
 DEVICE_NAME=Lightning AI Studio
 DEVICE_SUBTITLE=NVIDIA A10G · Gemma 4 26B
@@ -84,6 +88,7 @@ PEERS=[]
 ```
 
 > Per modelli diversi cambia `AI_MODEL` e `DEVICE_SUBTITLE` di conseguenza.
+> Su Lightning/T4 usa `WHISPER_MODEL=small` come default pragmatico. Se hai una GPU piu' grande e vuoi piu' accuratezza, puoi alzarlo manualmente a `large-v3-turbo`.
 
 ---
 
@@ -96,13 +101,14 @@ bash start-cloud.sh
 Lo script:
 1. Avvia **Ollama** e scarica il modello al primo run
 2. Avvia il **Whisper server** su `:8765`
-3. Avvia il **backend Node.js** su `:3000` (HTTP) e `:3443` (HTTPS)
+3. Installa le dipendenze del **backend Node.js** se `backend/node_modules` non esiste ancora
+4. Avvia il **backend Node.js** su `:3000` (HTTP) e `:3443` (HTTPS)
 
 ---
 
 ## Esponi la porta
 
-Dal pannello Lightning AI, vai su **Ports** e aggiungi la porta `3000`.  
+Dal pannello Lightning AI, vai su **Ports** e aggiungi la porta `3000`.
 Lightning AI genererà un URL pubblico HTTPS del tipo:
 
 ```
@@ -115,7 +121,7 @@ Apri quell'URL nel browser — l'app è online.
 
 ## Note
 
-- **Primo avvio lento**: Ollama scarica il modello (~16 GB per Gemma 4 26B) e il Whisper server carica large-v3-turbo. Attendi 2–3 minuti.
+- **Primo avvio lento**: Ollama scarica il modello (~16 GB per Gemma 4 26B) e il Whisper server scarica/carica il modello configurato in `WHISPER_MODEL`. Con `small` in genere parte molto piu' rapidamente di `large-v3-turbo`.
 - **Modello già scaricato**: Ollama conserva la cache tra sessioni — i run successivi partono in pochi secondi.
 - **Metriche di potenza**: sul cloud le metriche watt (RAPL/INA) non sono disponibili. Il badge mostra tok/s ma non i Watt.
 - **Peer multipli**: puoi aggiungere altri Studio o backend locali tramite `PEERS` nel `.env`.
