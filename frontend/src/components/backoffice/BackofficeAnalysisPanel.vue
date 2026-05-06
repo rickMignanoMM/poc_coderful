@@ -20,10 +20,75 @@
     <div v-if="showEmailModal" class="email-modal-overlay" @click.self="showEmailModal = false">
       <div class="email-modal">
         <div class="email-modal-header">
-          <span>📧 Invia via mail</span>
+          <span>📧 Riepilogo</span>
           <button class="close-btn" @click="showEmailModal = false">✕</button>
         </div>
-        <pre class="email-preview">{{ formatEmailText(analysis) }}</pre>
+
+        <div class="email-preview">
+          <!-- Header -->
+          <div class="ep-header">
+            <div class="ep-title">Analisi AI</div>
+            <div class="ep-date">{{ formatDate(analysis.generatoIl) }}</div>
+          </div>
+
+          <!-- Riassunto -->
+          <div v-if="analysis.riassunto" class="ep-section">
+            <div class="ep-section-label">📊 Riassunto</div>
+            <div v-if="analysis.riassunto.contesto" class="ep-row">
+              <span class="ep-key">Contesto</span>
+              <span class="ep-val">{{ analysis.riassunto.contesto }}</span>
+            </div>
+            <div v-if="analysis.riassunto.tono" class="ep-row">
+              <span class="ep-key">Tono</span>
+              <span class="ep-val">{{ analysis.riassunto.tono }}</span>
+            </div>
+            <div v-if="analysis.riassunto.argomenti?.length" class="ep-row ep-row-wrap">
+              <span class="ep-key">Argomenti</span>
+              <div class="ep-tags">
+                <span v-for="t in analysis.riassunto.argomenti" :key="t" class="ep-tag">{{ t }}</span>
+              </div>
+            </div>
+            <div v-if="analysis.riassunto.sintesi" class="ep-sintesi">{{ analysis.riassunto.sintesi }}</div>
+          </div>
+
+          <!-- Eventi -->
+          <div v-if="analysis.eventi?.eventi?.length" class="ep-section">
+            <div class="ep-section-label">📅 Eventi & Task</div>
+            <div v-for="ev in analysis.eventi.eventi" :key="ev.titolo" class="ep-item">
+              <div class="ep-item-top">
+                <span class="ep-item-title">{{ ev.titolo }}</span>
+                <span v-if="ev.priorita" class="ep-badge" :class="ev.priorita">{{ ev.priorita }}</span>
+              </div>
+              <div v-if="ev.data" class="ep-item-meta">📆 {{ ev.data }}</div>
+              <div v-if="ev.contesto" class="ep-item-meta">{{ ev.contesto }}</div>
+            </div>
+          </div>
+
+          <!-- Suggerimenti -->
+          <div v-if="analysis.suggerimenti?.suggerimenti?.length" class="ep-section">
+            <div class="ep-section-label">💡 Suggerimenti</div>
+            <div v-for="s in analysis.suggerimenti.suggerimenti" :key="s.titolo" class="ep-item">
+              <div class="ep-item-top">
+                <span class="ep-item-title">{{ s.titolo }}</span>
+                <span v-if="s.priorita" class="ep-badge" :class="s.priorita">{{ s.priorita }}</span>
+              </div>
+              <div v-if="s.descrizione" class="ep-item-meta">{{ s.descrizione }}</div>
+            </div>
+          </div>
+
+          <!-- Connessioni -->
+          <div v-if="analysis.connessioni?.connessioni?.length" class="ep-section">
+            <div class="ep-section-label">🔗 Connessioni tematiche</div>
+            <div v-for="c in analysis.connessioni.connessioni" :key="c.tema" class="ep-conn">
+              <div class="ep-conn-tema">{{ c.tema }}</div>
+              <div v-if="c.descrizione" class="ep-item-meta">{{ c.descrizione }}</div>
+              <div v-if="c.note?.length" class="ep-item-meta ep-note-pills">
+                <span v-for="n in c.note" :key="n" class="ep-note-pill">{{ n }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="email-modal-actions">
           <button class="btn-copy-email" :class="{ copied: emailCopied }" @click="copyEmailText(analysis)">
             {{ emailCopied ? '✓ Copiato!' : '📋 Copia testo' }}
