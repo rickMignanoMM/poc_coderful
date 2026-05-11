@@ -3,7 +3,7 @@
   "name": "Meet Recorder — Backoffice",
   "version": "2.0",
   "description": "Registra Google Meet e invia automaticamente al Backoffice Note Audio",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "tabCapture"],
   "host_permissions": ["https://meet.google.com/*"],
   "background": {
     "service_worker": "background.js"

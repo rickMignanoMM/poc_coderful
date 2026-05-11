@@ -4,7 +4,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === 'meetRecorder_start') {
-    window.postMessage({ __mrSrc: 'ctrl', cmd: 'start', backendUrl: msg.backendUrl }, '*');
+    window.postMessage({ __mrSrc: 'ctrl', cmd: 'start', streamId: msg.streamId, backendUrl: msg.backendUrl }, '*');
     sendResponse({ ok: true });
     return true;
   }

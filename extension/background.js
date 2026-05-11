@@ -33,10 +33,20 @@ async function handleStart(tabId, backendUrl) {
   const ready = await ping(tabId);
   if (!ready) return { ok: false, error: 'reload' };
 
+  const streamId = await new Promise((resolve, reject) => {
+    chrome.tabCapture.getMediaStreamId(
+      { targetTabId: tabId, consumerTabId: tabId },
+      (id) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(id);
+      }
+    );
+  });
+
   await chrome.storage.session.set({ recording: true, startTime: Date.now(), tabId, lastUpload: null });
   setIcon(true);
 
-  chrome.tabs.sendMessage(tabId, { action: 'meetRecorder_start', backendUrl }).catch(() => {});
+  chrome.tabs.sendMessage(tabId, { action: 'meetRecorder_start', streamId, backendUrl }).catch(() => {});
   return { ok: true };
 }
 

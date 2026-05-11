@@ -2,71 +2,75 @@
   if (window.__meetRecorderInjected) return;
   window.__meetRecorderInjected = true;
 
-  // Remote audio tracks from RTCPeerConnection (no AudioContext needed)
-  const audioTracks = new Set();
   let mediaRecorder = null;
   let chunks = [];
+  let loopbackEl = null;
+  let micStream = null;
+  let audioCtx = null;
   let recBackendUrl = null;
 
-  // Patch RTCPeerConnection to collect incoming audio tracks
-  const OrigPC = window.RTCPeerConnection;
-  window.RTCPeerConnection = function (...args) {
-    const pc = new OrigPC(...args);
-    pc.addEventListener('track', ({ track }) => {
-      if (track.kind !== 'audio') return;
-      audioTracks.add(track);
-      track.addEventListener('ended', () => audioTracks.delete(track), { once: true });
-    });
-    return pc;
-  };
-  Object.setPrototypeOf(window.RTCPeerConnection, OrigPC);
-  window.RTCPeerConnection.prototype = OrigPC.prototype;
-
-  // Commands from content.js
+  // Commands from content.js via window.postMessage
   window.addEventListener('message', async (e) => {
     if (!e.data || e.data.__mrSrc !== 'ctrl') return;
-    if (e.data.cmd === 'start') await startRec(e.data.backendUrl);
+    if (e.data.cmd === 'start') await startRec(e.data.streamId, e.data.backendUrl);
     else if (e.data.cmd === 'stop') stopRec();
   });
 
-  async function startRec(backendUrl) {
+  async function startRec(streamId, backendUrl) {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') return;
     recBackendUrl = backendUrl;
     chunks = [];
 
-    const liveTracks = Array.from(audioTracks).filter(t => t.readyState === 'live');
+    // Get tab audio via tabCapture stream ID (runs in MAIN world — page has prior user interaction)
+    const tabStream = await navigator.mediaDevices.getUserMedia({
+      audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: streamId } },
+      video: false,
+    });
 
-    // Add local microphone
+    // Loopback: re-play captured tab audio so user still hears the call
+    loopbackEl = document.createElement('audio');
+    loopbackEl.srcObject = tabStream;
+    loopbackEl.volume = 1;
+    loopbackEl.play().catch(() => {});
+
+    // Mix tab + mic via AudioContext
+    audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch {}
+    }
+    const dest = audioCtx.createMediaStreamDestination();
+    audioCtx.createMediaStreamSource(tabStream).connect(dest);
+
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      mic.getAudioTracks().forEach(t => liveTracks.push(t));
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      audioCtx.createMediaStreamSource(micStream).connect(dest);
     } catch {}
 
-    if (liveTracks.length === 0) {
-      window.postMessage({ __mrSrc: 'page', cmd: 'error', error: 'no-tracks' }, '*');
-      return;
-    }
-
-    const stream = new MediaStream(liveTracks);
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus' : 'audio/webm';
 
-    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorder = new MediaRecorder(dest.stream, { mimeType });
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     mediaRecorder.onstop = async () => {
       const blob = new Blob(chunks, { type: mimeType });
       const buffer = await blob.arrayBuffer();
       const filename = `meet-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
-      // Clone (no transfer list) for reliability across worlds
       window.postMessage({ __mrSrc: 'page', cmd: 'upload', buffer, mimeType, filename, backendUrl: recBackendUrl }, '*');
-      mediaRecorder = null;
-      chunks = [];
+      cleanup();
     };
     mediaRecorder.start(1000);
-    window.postMessage({ __mrSrc: 'page', cmd: 'started', trackCount: liveTracks.length }, '*');
+    window.postMessage({ __mrSrc: 'page', cmd: 'started' }, '*');
   }
 
   function stopRec() {
     if (mediaRecorder?.state !== 'inactive') mediaRecorder?.stop();
+  }
+
+  function cleanup() {
+    if (loopbackEl) { loopbackEl.pause(); loopbackEl.srcObject = null; loopbackEl.remove(); loopbackEl = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    mediaRecorder = null;
+    chunks = [];
   }
 })();
