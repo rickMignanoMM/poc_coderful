@@ -1,3 +1,7 @@
+// Guard contro doppia iniezione se executeScript viene chiamato su tab già inizializzato
+if (window.__meetRecorderLoaded) throw new Error("already loaded");
+window.__meetRecorderLoaded = true;
+
 let mediaRecorder = null;
 let chunks = [];
 let audioCtx = null;

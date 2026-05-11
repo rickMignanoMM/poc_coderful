@@ -34,13 +34,18 @@ async function handleStart(tabId, backendUrl) {
   await chrome.storage.session.set({ recording: true, startTime: Date.now(), tabId, lastUpload: null });
   setIcon(true);
 
-  chrome.tabs.sendMessage(tabId, { action: "meetRecorder_start", streamId, backendUrl });
+  // Inietta il content script se il tab era già aperto prima del caricamento dell'estensione
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  } catch { /* già iniettato — il guard in content.js previene la doppia inizializzazione */ }
+
+  await chrome.tabs.sendMessage(tabId, { action: "meetRecorder_start", streamId, backendUrl });
   return { ok: true };
 }
 
 async function handleStop() {
   const { tabId } = await chrome.storage.session.get(["tabId"]);
-  if (tabId) chrome.tabs.sendMessage(tabId, { action: "meetRecorder_stop" });
+  if (tabId) chrome.tabs.sendMessage(tabId, { action: "meetRecorder_stop" }).catch(() => {});
   return { ok: true };
 }
 
