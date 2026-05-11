@@ -4,8 +4,8 @@ async function ensureOffscreen() {
   if (await chrome.offscreen.hasDocument()) return;
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_URL,
-    reasons: ["USER_MEDIA"],
-    justification: "Acquisizione audio tab Google Meet",
+    reasons: ["USER_MEDIA", "AUDIO_PLAYBACK"],
+    justification: "Acquisizione e riproduzione audio tab Google Meet",
   });
 }
 

@@ -33,6 +33,7 @@ async function startRecording(streamId, url) {
   // AudioContext sempre necessario: serve per rimandare il tab audio agli speaker
   // mentre contemporaneamente lo si registra (senza questo il tab diventa muto)
   const ctx = new AudioContext();
+  await ctx.resume();
   const tabSource = ctx.createMediaStreamSource(tabStream);
   const recordDest = ctx.createMediaStreamDestination();
 
