@@ -133,8 +133,15 @@ app.post("/api/audio", upload.single("audio"), (req, res) => {
 
   const mp3Path = req.file.path.replace(/\.[^.]+$/, ".mp3");
   const conv = spawn("ffmpeg", ["-y", "-i", req.file.path, "-q:a", "4", mp3Path]);
-  conv.on("close", () => {
-    fs.unlinkSync(req.file.path);
+  conv.on("close", (code) => {
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (code !== 0) {
+      console.error(`ffmpeg conversion failed (exit ${code}) for ${req.file.path}`);
+      saveNotes(readNotes().map((n) =>
+        n.id === note.id ? { ...n, status: "completata", testo: "" } : n
+      ));
+      return;
+    }
     const mp3Filename = path.basename(mp3Path);
     const updated1 = readNotes().map((n) =>
       n.id === note.id ? { ...n, filename: mp3Filename } : n

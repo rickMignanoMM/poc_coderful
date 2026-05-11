@@ -5,6 +5,7 @@ window.__meetRecorderLoaded = true;
 let mediaRecorder = null;
 let chunks = [];
 let audioCtx = null;
+let tabTracks = []; // track refs per fermare il capture e ripristinare l'audio del tab
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === "meetRecorder_start") startRecording(msg.streamId, msg.backendUrl);
@@ -24,6 +25,7 @@ async function startRecording(streamId, backendUrl) {
     video: false,
   });
 
+  tabTracks = tabStream.getTracks();
   audioCtx = new AudioContext();
   const tabSource = audioCtx.createMediaStreamSource(tabStream);
   const recordDest = audioCtx.createMediaStreamDestination();
@@ -55,4 +57,7 @@ async function startRecording(streamId, backendUrl) {
 function stopRecording() {
   if (mediaRecorder?.state !== "inactive") mediaRecorder.stop();
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  // Ferma i track: rilascia il capture del tab e ripristina l'audio normale
+  tabTracks.forEach(t => t.stop());
+  tabTracks = [];
 }
