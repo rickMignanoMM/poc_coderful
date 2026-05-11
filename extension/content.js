@@ -1,63 +1,73 @@
-// Guard contro doppia iniezione se executeScript viene chiamato su tab già inizializzato
-if (window.__meetRecorderLoaded) throw new Error("already loaded");
-window.__meetRecorderLoaded = true;
+(() => {
+  if (window.__meetRecorderLoaded) return;
+  window.__meetRecorderLoaded = true;
 
-let mediaRecorder = null;
-let chunks = [];
-let audioCtx = null;
-let tabTracks = []; // track refs per fermare il capture e ripristinare l'audio del tab
+  let mediaRecorder = null;
+  let chunks = [];
+  let audioCtx = null;
+  let tabTracks = [];
+  let loopbackEl = null;
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.action === "meetRecorder_start") startRecording(msg.streamId, msg.backendUrl);
-  if (msg.action === "meetRecorder_stop") stopRecording();
-});
-
-async function startRecording(streamId, backendUrl) {
-  chunks = [];
-
-  const tabStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      mandatory: {
-        chromeMediaSource: "tab",
-        chromeMediaSourceId: streamId,
-      },
-    },
-    video: false,
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === "meetRecorder_start") startRecording(msg.streamId, msg.backendUrl);
+    if (msg.action === "meetRecorder_stop") stopRecording();
   });
 
-  tabTracks = tabStream.getTracks();
-  audioCtx = new AudioContext();
-  const tabSource = audioCtx.createMediaStreamSource(tabStream);
-  const recordDest = audioCtx.createMediaStreamDestination();
+  async function startRecording(streamId, backendUrl) {
+    chunks = [];
 
-  tabSource.connect(audioCtx.destination); // loopback → speaker
-  tabSource.connect(recordDest);
+    const tabStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId },
+      },
+      video: false,
+    });
 
-  try {
-    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    audioCtx.createMediaStreamSource(micStream).connect(recordDest);
-  } catch {}
+    tabTracks = tabStream.getTracks();
 
-  const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-    ? "audio/webm;codecs=opus"
-    : "audio/webm";
+    // Loopback via <audio>: funziona con l'attivazione utente della pagina Meet
+    // AudioContext parte suspended senza gesto diretto, <audio> no
+    loopbackEl = document.createElement("audio");
+    loopbackEl.srcObject = tabStream;
+    loopbackEl.volume = 1;
+    loopbackEl.play().catch(() => {});
 
-  mediaRecorder = new MediaRecorder(recordDest.stream, { mimeType });
-  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-  // L'upload va al background: niente mixed-content, service worker non può essere terminato durante il fetch
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(chunks, { type: mimeType });
-    const buffer = await blob.arrayBuffer();
-    const filename = `meet-${new Date().toISOString().replace(/[:.]/g, "-")}.${mimeType.includes("webm") ? "webm" : "ogg"}`;
-    chrome.runtime.sendMessage({ action: "doUpload", buffer, mimeType, filename, backendUrl });
-  };
-  mediaRecorder.start(1000);
-}
+    // AudioContext solo per mixare tab + mic nel recorder
+    let sourceStream = tabStream;
+    try {
+      audioCtx = new AudioContext();
+      await audioCtx.resume();
+      const dest = audioCtx.createMediaStreamDestination();
+      audioCtx.createMediaStreamSource(tabStream).connect(dest);
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioCtx.createMediaStreamSource(mic).connect(dest);
+      } catch {}
+      sourceStream = dest.stream;
+    } catch {
+      if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    }
 
-function stopRecording() {
-  if (mediaRecorder?.state !== "inactive") mediaRecorder.stop();
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  // Ferma i track: rilascia il capture del tab e ripristina l'audio normale
-  tabTracks.forEach(t => t.stop());
-  tabTracks = [];
-}
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : "audio/webm";
+
+    mediaRecorder = new MediaRecorder(sourceStream, { mimeType });
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: mimeType });
+      const buffer = await blob.arrayBuffer();
+      const filename = `meet-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+      chrome.runtime.sendMessage({ action: "doUpload", buffer, mimeType, filename, backendUrl });
+    };
+    mediaRecorder.start(1000);
+  }
+
+  function stopRecording() {
+    if (mediaRecorder?.state !== "inactive") mediaRecorder.stop();
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    tabTracks.forEach(t => t.stop());
+    tabTracks = [];
+    if (loopbackEl) { loopbackEl.pause(); loopbackEl.srcObject = null; loopbackEl.remove(); loopbackEl = null; }
+  }
+})();
