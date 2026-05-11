@@ -10,17 +10,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === "getState") {
-    chrome.storage.session.get(["recording", "startTime"]).then(sendResponse);
+    chrome.storage.session.get(["recording", "startTime", "lastUpload"]).then(sendResponse);
     return true;
   }
-  if (msg.action === "uploadDone" || msg.action === "uploadError") {
-    chrome.storage.session.set({ recording: false, startTime: null });
-    setIcon(false);
+  if (msg.action === "doUpload") {
+    handleUpload(msg); // fire-and-forget, upload avviene qui nel background
+    sendResponse({ ok: true });
+    return true;
   }
 });
 
 async function handleStart(tabId, backendUrl) {
-  // consumerTabId = tabId → lo stream ID può essere consumato dal content script in quel tab
   const streamId = await new Promise((resolve, reject) => {
     chrome.tabCapture.getMediaStreamId(
       { targetTabId: tabId, consumerTabId: tabId },
@@ -31,7 +31,7 @@ async function handleStart(tabId, backendUrl) {
     );
   });
 
-  await chrome.storage.session.set({ recording: true, startTime: Date.now(), tabId });
+  await chrome.storage.session.set({ recording: true, startTime: Date.now(), tabId, lastUpload: null });
   setIcon(true);
 
   chrome.tabs.sendMessage(tabId, { action: "meetRecorder_start", streamId, backendUrl });
@@ -42,6 +42,27 @@ async function handleStop() {
   const { tabId } = await chrome.storage.session.get(["tabId"]);
   if (tabId) chrome.tabs.sendMessage(tabId, { action: "meetRecorder_stop" });
   return { ok: true };
+}
+
+async function handleUpload({ buffer, mimeType, filename, backendUrl }) {
+  try {
+    const blob = new Blob([buffer], { type: mimeType });
+    const form = new FormData();
+    form.append("audio", blob, filename);
+
+    const res = await fetch(`${backendUrl}/api/audio`, { method: "POST", body: form });
+    const data = await res.json();
+    const action = data.ok ? "uploadDone" : "uploadError";
+
+    await chrome.storage.session.set({ recording: false, startTime: null, lastUpload: action });
+    setIcon(false);
+    // Notifica popup se aperto; se è chiuso ignora l'errore
+    chrome.runtime.sendMessage({ action }).catch(() => {});
+  } catch (err) {
+    await chrome.storage.session.set({ recording: false, startTime: null, lastUpload: "uploadError" });
+    setIcon(false);
+    chrome.runtime.sendMessage({ action: "uploadError", error: err.message }).catch(() => {});
+  }
 }
 
 function setIcon(recording) {

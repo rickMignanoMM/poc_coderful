@@ -28,6 +28,12 @@ async function init() {
   const state = await chrome.runtime.sendMessage({ action: "getState" });
   if (state?.recording) {
     setRecording(true, state.startTime);
+  } else if (state?.lastUpload === "uploadDone") {
+    showMsg("✓ Nota inviata al Backoffice!", true);
+    chrome.storage.session.set({ lastUpload: null });
+  } else if (state?.lastUpload === "uploadError") {
+    showMsg("Errore upload — controlla il Backoffice", false);
+    chrome.storage.session.set({ lastUpload: null });
   }
 
   elUrl.addEventListener("change", () => {
