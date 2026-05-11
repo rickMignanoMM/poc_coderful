@@ -14,13 +14,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === "doUpload") {
-    handleUpload(msg); // fire-and-forget, upload avviene qui nel background
+    handleUpload(msg);
     sendResponse({ ok: true });
     return true;
   }
+  if (msg.action === "uploadDone" || msg.action === "uploadError") {
+    chrome.storage.session.set({ recording: false, startTime: null, lastUpload: msg.action });
+    setIcon(false);
+    chrome.runtime.sendMessage(msg).catch(() => {});
+  }
 });
 
+async function ping(tabId) {
+  try {
+    const res = await chrome.tabs.sendMessage(tabId, { action: "meetRecorder_ping" });
+    return res?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleStart(tabId, backendUrl) {
+  const ready = await ping(tabId);
+  if (!ready) {
+    return { ok: false, error: "reload" };
+  }
+
   const streamId = await new Promise((resolve, reject) => {
     chrome.tabCapture.getMediaStreamId(
       { targetTabId: tabId, consumerTabId: tabId },
@@ -34,12 +53,7 @@ async function handleStart(tabId, backendUrl) {
   await chrome.storage.session.set({ recording: true, startTime: Date.now(), tabId, lastUpload: null });
   setIcon(true);
 
-  // Inietta il content script se il tab era già aperto prima del caricamento dell'estensione
-  try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
-  } catch { /* già iniettato — il guard in content.js previene la doppia inizializzazione */ }
-
-  await chrome.tabs.sendMessage(tabId, { action: "meetRecorder_start", streamId, backendUrl });
+  chrome.tabs.sendMessage(tabId, { action: "meetRecorder_start", streamId, backendUrl }).catch(() => {});
   return { ok: true };
 }
 
@@ -54,14 +68,11 @@ async function handleUpload({ buffer, mimeType, filename, backendUrl }) {
     const blob = new Blob([buffer], { type: mimeType });
     const form = new FormData();
     form.append("audio", blob, filename);
-
     const res = await fetch(`${backendUrl}/api/audio`, { method: "POST", body: form });
     const data = await res.json();
     const action = data.ok ? "uploadDone" : "uploadError";
-
     await chrome.storage.session.set({ recording: false, startTime: null, lastUpload: action });
     setIcon(false);
-    // Notifica popup se aperto; se è chiuso ignora l'errore
     chrome.runtime.sendMessage({ action }).catch(() => {});
   } catch (err) {
     await chrome.storage.session.set({ recording: false, startTime: null, lastUpload: "uploadError" });

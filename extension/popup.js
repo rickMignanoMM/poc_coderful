@@ -58,6 +58,9 @@ async function init() {
 
     if (res?.ok) {
       setRecording(true, Date.now());
+    } else if (res?.error === "reload") {
+      setRecording(false);
+      showMsg("⟳ Ricarica il tab di Meet (F5) e riprova", false);
     } else {
       setRecording(false);
       showMsg("Errore: " + (res?.error || "impossibile avviare"), false);
