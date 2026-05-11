@@ -84,7 +84,7 @@ async function llamaChat(messages, onStream) {
       messages,
       stream: true,
       stream_options: { include_usage: true },
-      max_tokens: 1024,
+      max_tokens: 4096,
     }),
   });
   if (!res.ok) {

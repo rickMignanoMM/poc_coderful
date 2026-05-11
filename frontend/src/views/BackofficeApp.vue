@@ -263,13 +263,14 @@
         <template v-else>
           <div v-for="(msg, i) in chatMessages" :key="i" :class="['bubble-row', msg.role]">
             <div class="bubble-wrap">
-              <div class="bubble">{{ msg.content }}</div>
+              <div v-if="msg.role === 'assistant'" class="bubble md-bubble" v-html="renderMarkdown(msg.content)"></div>
+              <div v-else class="bubble">{{ msg.content }}</div>
               <span v-if="msg.patched" class="patch-applied-badge">✓ Recap aggiornato</span>
               <span v-if="msg.notesUsed > 0" class="notes-used-badge">📋 {{ msg.notesUsed }} nota{{ msg.notesUsed > 1 ? 'e' : '' }}</span>
             </div>
           </div>
           <div v-if="chatLoading" class="bubble-row assistant">
-            <div v-if="chatStreaming" class="bubble stream-bubble">{{ chatStreaming }}<span class="stream-cursor">▋</span></div>
+            <div v-if="chatStreamingDisplayed" class="bubble md-bubble stream-bubble" v-html="renderMarkdown(chatStreamingDisplayed) + '<span class=\'stream-cursor\'>▋</span>'"></div>
             <div v-else class="bubble typing"><span></span><span></span><span></span></div>
           </div>
         </template>
@@ -324,6 +325,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { marked } from "marked";
 import BackofficeAnalysisPanel from "../components/backoffice/BackofficeAnalysisPanel.vue";
 import BackofficeNotesTab from "../components/backoffice/BackofficeNotesTab.vue";
 import DeviceBadge from "../components/DeviceBadge.vue";
@@ -334,6 +336,11 @@ import { buildStats, buildCalendarUrl, filterNotes, groupNotesByDay, RECAP_SECTI
 import { formatDateTime, formatTimeOnly } from "../utils/dateTime.js";
 
 const { apiFetch, mediaUrl } = useApi();
+
+marked.setOptions({ breaks: true, gfm: true });
+function renderMarkdown(text) {
+  return marked.parse(text || "");
+}
 const { pollJob } = useJobPoller(apiFetch);
 const {
   notes,
@@ -387,6 +394,26 @@ const chatLogs = ref([]);
 const chatScrollEl = ref(null);
 const analysisStreaming = ref("");
 const chatStreaming = ref("");
+const chatStreamingDisplayed = ref("");
+let _typewriterTimer = null;
+
+watch(chatStreaming, (newText) => {
+  if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  if (!newText) { chatStreamingDisplayed.value = ""; return; }
+
+  const startLen = chatStreamingDisplayed.value.length;
+  const newChars = newText.length - startLen;
+  if (newChars <= 0) { chatStreamingDisplayed.value = newText; return; }
+
+  const charDelay = Math.max(8, Math.min(40, 1200 / newChars));
+  let pos = startLen;
+  _typewriterTimer = setInterval(() => {
+    pos++;
+    chatStreamingDisplayed.value = newText.slice(0, pos);
+    if (pos >= newText.length) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+  }, charDelay);
+});
+
 const chatMode = ref("free");
 const recapSection = ref("tutti");
 const pixel8bit = ref(localStorage.getItem("mode-8bit") === "1");
@@ -1019,6 +1046,21 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .bubble-wrap { display: flex; flex-direction: column; gap: 6px; max-width: 70%; }
 .bubble-row.user .bubble-wrap { align-items: flex-end; }
 .bubble { padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.md-bubble { white-space: normal; }
+.md-bubble :deep(p) { margin: 0 0 8px; }
+.md-bubble :deep(p:last-child) { margin-bottom: 0; }
+.md-bubble :deep(h1),.md-bubble :deep(h2),.md-bubble :deep(h3),.md-bubble :deep(h4) { margin: 12px 0 6px; font-weight: 700; line-height: 1.3; }
+.md-bubble :deep(h1) { font-size: 17px; }
+.md-bubble :deep(h2) { font-size: 15px; }
+.md-bubble :deep(h3) { font-size: 14px; }
+.md-bubble :deep(ul),.md-bubble :deep(ol) { margin: 6px 0; padding-left: 20px; }
+.md-bubble :deep(li) { margin-bottom: 4px; }
+.md-bubble :deep(strong) { font-weight: 700; }
+.md-bubble :deep(em) { font-style: italic; }
+.md-bubble :deep(code) { font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 4px; }
+.md-bubble :deep(pre) { background: rgba(0,0,0,0.07); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; }
+.md-bubble :deep(pre code) { background: none; padding: 0; }
+.md-bubble :deep(blockquote) { border-left: 3px solid #c7c7cc; margin: 8px 0; padding-left: 12px; color: #6e6e73; }
 .stream-cursor { display: inline-block; width: 2px; height: 1em; background: #1d1d1f; margin-left: 2px; vertical-align: text-bottom; animation: blink 0.8s step-end infinite; }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .bubble-row.user .bubble { background: #007aff; color: #fff; border-bottom-right-radius: 4px; }

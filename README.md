@@ -81,11 +81,11 @@ cp backend/.env.example backend/.env
 Modifica `backend/.env`:
 
 ```env
-# URL del server LLM (llama.cpp o Ollama)
+# URL del server LLM (llama.cpp su :8080, Ollama su :11434)
 AI_BASE_URL=http://127.0.0.1:8080
 
-# Nome del modello (hash blob per llama.cpp, nome per Ollama)
-AI_MODEL=sha256-xxxx   # oppure: gemma4:26b
+# Nome del modello (nome file GGUF per llama.cpp, nome modello per Ollama)
+AI_MODEL=gemma-4-26B-A4B-it-UD-Q4_K_M   # oppure: gemma4:26b (Ollama)
 
 # Nome visualizzato nel badge dispositivo
 DEVICE_NAME=Il mio PC
@@ -102,20 +102,22 @@ PEERS=[{"name":"Jetson Orin","url":"https://192.168.1.20:3443"}]
 
 ## 6. Scarica e avvia il modello LLM
 
-### Opzione A — llama.cpp (consigliata su CPU)
+### Opzione A — llama.cpp (consigliata su CPU, usata su Tuxedo)
 
 ```bash
 # Scarica llama-server da https://github.com/ggml-org/llama.cpp/releases
 # Copia il binario e le librerie in ~/llama-cpp/
 
-# Scarica il modello (es. Gemma 4 26B Q4_K_M) — il blob Ollama funziona:
-ollama pull gemma4:26b
-# Il blob si trova in /usr/share/ollama/.ollama/models/blobs/sha256-...
+# Scarica il modello GGUF direttamente da Hugging Face
+mkdir -p ~/models
+wget -c -O ~/models/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf \
+  "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"
 
+# In .env: AI_BASE_URL=http://127.0.0.1:8080  AI_MODEL=gemma-4-26B-A4B-it-UD-Q4_K_M
 bash start-llama.sh
 ```
 
-### Opzione B — Ollama (più semplice)
+### Opzione B — Ollama (Jetson / cloud)
 
 ```bash
 ollama serve &
@@ -141,7 +143,7 @@ bash start.sh
 
 Lo script fa in ordine:
 1. Imposta il CPU governor a `performance` (richiede sudo — vedi sotto)
-2. Verifica che Ollama sia attivo (se usato)
+2. Avvia **llama-server** su `:8080` (se `AI_BASE_URL` punta a `:8080`) oppure Ollama su `:11434`
 3. Avvia il **Whisper server** su `:8765` (carica il modello una volta sola)
 4. Avvia il **backend Node.js** su `:3443` (HTTPS) e `:3000` (HTTP)
 

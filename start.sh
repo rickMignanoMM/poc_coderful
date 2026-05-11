@@ -14,17 +14,27 @@ else
   echo "CPU governor già in modalità performance."
 fi
 
-# Avvia Ollama se non attivo
-if ! curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
-  echo "Avvio Ollama..."
-  ollama serve &
-  for i in $(seq 1 30); do
-    sleep 1
-    curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1 && break
-  done
-  echo "Ollama pronto."
+# Avvia llama-server (porta 8080) o Ollama (porta 11434) in base ad AI_BASE_URL
+AI_BASE_URL_VAL=$(grep "^AI_BASE_URL=" "$DIR/backend/.env" 2>/dev/null | cut -d= -f2-)
+if echo "$AI_BASE_URL_VAL" | grep -q ":8080"; then
+  if ! curl -s http://127.0.0.1:8080/health 2>/dev/null | grep -q '"ok"'; then
+    echo "Avvio llama-server..."
+    bash "$DIR/start-llama.sh"
+  else
+    echo "llama-server già in ascolto su :8080."
+  fi
 else
-  echo "Ollama già in ascolto."
+  if ! curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+    echo "Avvio Ollama..."
+    ollama serve &
+    for i in $(seq 1 30); do
+      sleep 1
+      curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1 && break
+    done
+    echo "Ollama pronto."
+  else
+    echo "Ollama già in ascolto."
+  fi
 fi
 
 # Avvia ngrok se non attivo

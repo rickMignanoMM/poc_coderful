@@ -1,7 +1,7 @@
 #!/bin/bash
 # Avvia llama-server con Gemma 4 26B-A4B Q4_K_M
 LLAMA_DIR="/home/rickmignano/llama-cpp"
-MODEL="/usr/share/ollama/.ollama/models/blobs/sha256-b8707e57f676d8dd1b80f623b45200cc92e6966b0e95275e606f412095a49fde"
+MODEL="/home/rickmignano/models/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"
 
 if fuser 8080/tcp > /dev/null 2>&1; then
   echo "llama-server già in ascolto su :8080"
@@ -23,6 +23,7 @@ taskset -c 0-11 "$LLAMA_DIR/llama-server" \
   --port 8080 \
   --host 127.0.0.1 \
   --ctx-size 24576 \
+  --parallel 1 \
   --threads 12 \
   --threads-batch 12 \
   --batch-size 512 \
