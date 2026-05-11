@@ -2,46 +2,27 @@
   if (window.__meetRecorderInjected) return;
   window.__meetRecorderInjected = true;
 
-  let audioCtx = null;
-  let destNode = null;
-  const connectedIds = new Set();
+  // Remote audio tracks from RTCPeerConnection (no AudioContext needed)
+  const audioTracks = new Set();
   let mediaRecorder = null;
   let chunks = [];
   let recBackendUrl = null;
 
-  // Patch RTCPeerConnection to intercept remote audio tracks
+  // Patch RTCPeerConnection to collect incoming audio tracks
   const OrigPC = window.RTCPeerConnection;
-  class PatchedPC extends OrigPC {
-    constructor(...args) {
-      super(...args);
-      this.addEventListener('track', ({ track }) => {
-        if (track.kind === 'audio') hookTrack(track);
-      });
-    }
-  }
-  window.RTCPeerConnection = PatchedPC;
+  window.RTCPeerConnection = function (...args) {
+    const pc = new OrigPC(...args);
+    pc.addEventListener('track', ({ track }) => {
+      if (track.kind !== 'audio') return;
+      audioTracks.add(track);
+      track.addEventListener('ended', () => audioTracks.delete(track), { once: true });
+    });
+    return pc;
+  };
+  Object.setPrototypeOf(window.RTCPeerConnection, OrigPC);
+  window.RTCPeerConnection.prototype = OrigPC.prototype;
 
-  function ensureCtx() {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new AudioContext();
-      destNode = audioCtx.createMediaStreamDestination();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-  }
-
-  function hookTrack(track) {
-    if (connectedIds.has(track.id)) return;
-    connectedIds.add(track.id);
-    ensureCtx();
-    const src = audioCtx.createMediaStreamSource(new MediaStream([track]));
-    src.connect(destNode);
-    track.addEventListener('ended', () => {
-      connectedIds.delete(track.id);
-      try { src.disconnect(); } catch {}
-    }, { once: true });
-  }
-
-  // Commands from content.js via window.postMessage
+  // Commands from content.js
   window.addEventListener('message', async (e) => {
     if (!e.data || e.data.__mrSrc !== 'ctrl') return;
     if (e.data.cmd === 'start') await startRec(e.data.backendUrl);
@@ -53,36 +34,36 @@
     recBackendUrl = backendUrl;
     chunks = [];
 
-    ensureCtx();
-    if (audioCtx.state === 'suspended') {
-      try { await audioCtx.resume(); } catch {}
-    }
+    const liveTracks = Array.from(audioTracks).filter(t => t.readyState === 'live');
 
-    // Include local microphone alongside remote tracks
+    // Add local microphone
     try {
       const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      audioCtx.createMediaStreamSource(mic).connect(destNode);
+      mic.getAudioTracks().forEach(t => liveTracks.push(t));
     } catch {}
 
+    if (liveTracks.length === 0) {
+      window.postMessage({ __mrSrc: 'page', cmd: 'error', error: 'no-tracks' }, '*');
+      return;
+    }
+
+    const stream = new MediaStream(liveTracks);
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus' : 'audio/webm';
 
-    mediaRecorder = new MediaRecorder(destNode.stream, { mimeType });
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     mediaRecorder.onstop = async () => {
       const blob = new Blob(chunks, { type: mimeType });
       const buffer = await blob.arrayBuffer();
       const filename = `meet-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
-      window.postMessage(
-        { __mrSrc: 'page', cmd: 'upload', buffer, mimeType, filename, backendUrl: recBackendUrl },
-        '*',
-        [buffer]
-      );
+      // Clone (no transfer list) for reliability across worlds
+      window.postMessage({ __mrSrc: 'page', cmd: 'upload', buffer, mimeType, filename, backendUrl: recBackendUrl }, '*');
       mediaRecorder = null;
       chunks = [];
     };
     mediaRecorder.start(1000);
-    window.postMessage({ __mrSrc: 'page', cmd: 'started' }, '*');
+    window.postMessage({ __mrSrc: 'page', cmd: 'started', trackCount: liveTracks.length }, '*');
   }
 
   function stopRec() {
