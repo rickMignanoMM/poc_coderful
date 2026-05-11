@@ -30,17 +30,21 @@ async function startRecording(streamId, url) {
     // nessun microfono disponibile — solo audio remoto
   }
 
-  let sourceStream = tabStream;
+  // AudioContext sempre necessario: serve per rimandare il tab audio agli speaker
+  // mentre contemporaneamente lo si registra (senza questo il tab diventa muto)
+  const ctx = new AudioContext();
+  const tabSource = ctx.createMediaStreamSource(tabStream);
+  const recordDest = ctx.createMediaStreamDestination();
+
+  tabSource.connect(ctx.destination);  // loopback → speaker
+  tabSource.connect(recordDest);       // → recorder
 
   if (micStream) {
-    const ctx = new AudioContext();
-    const tabSource = ctx.createMediaStreamSource(tabStream);
     const micSource = ctx.createMediaStreamSource(micStream);
-    const dest = ctx.createMediaStreamDestination();
-    tabSource.connect(dest);
-    micSource.connect(dest);
-    sourceStream = dest.stream;
+    micSource.connect(recordDest);     // mic solo al recorder, mai agli speaker (feedback)
   }
+
+  const sourceStream = recordDest.stream;
 
   const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
     ? "audio/webm;codecs=opus"
