@@ -9,6 +9,10 @@
         </button>
         <button class="btn-io" @click="$refs.importInput.click()" title="Importa note">⬆ Import</button>
         <input ref="importInput" type="file" accept=".json" style="display:none" @change="importNotes" />
+        <button class="btn-io btn-audio-import" :disabled="audioUploading" @click="$refs.audioInput.click()" title="Importa file audio">
+          {{ audioUploading ? `⏳ ${audioUploadProgress}` : '🎙 Import Audio' }}
+        </button>
+        <input ref="audioInput" type="file" accept="audio/*,video/mp4,video/webm,video/quicktime" multiple style="display:none" @change="importAudio" />
         <button class="btn-pulisci" :disabled="cleanupLoading || analysisLoading" @click="startCleanup">
           {{ cleanupLoading ? "⏳ Pulizia in corso..." : "✨ Sistema note" }}
         </button>
@@ -383,6 +387,8 @@ const editingConnectionIdx = ref(null);
 const editingConnection = ref({});
 const textInputOpen = ref(false);
 const textInput = ref("");
+const audioUploading = ref(false);
+const audioUploadProgress = ref("");
 const expandedIds = ref(new Set());
 
 // chat
@@ -857,6 +863,29 @@ async function exportNotes() {
   URL.revokeObjectURL(url);
 }
 
+async function importAudio(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  e.target.value = "";
+  audioUploading.value = true;
+  let done = 0;
+  for (const file of files) {
+    audioUploadProgress.value = files.length > 1 ? `${done + 1}/${files.length}` : "";
+    try {
+      const form = new FormData();
+      form.append("audio", file, file.name);
+      await apiFetch("/api/audio", { method: "POST", body: form });
+    } catch (err) {
+      console.error("[ImportAudio]", file.name, err);
+    }
+    done++;
+  }
+  audioUploading.value = false;
+  audioUploadProgress.value = "";
+  await loadNotes();
+  startPolling(3000);
+}
+
 async function importNotes(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -904,6 +933,7 @@ onMounted(() => {
 .btn-pulisci:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-io { padding: 8px 14px; background: #f2f2f7; color: #3a3a3c; border: 1px solid #e5e5ea; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn-io:hover { background: #e5e5ea; }
+.btn-audio-import:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .analisi-split { position: relative; display: flex; }
 .btn-analisi { padding: 8px 14px; background: #5856d6; color: #fff; border: none; border-radius: 10px 0 0 10px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
