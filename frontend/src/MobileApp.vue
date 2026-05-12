@@ -2,10 +2,10 @@
   <div class="app">
     <nav>
       <button :class="{ active: view === 'record' }" @click="view = 'record'">
-        🎙 Registra
+        <Icon icon="lucide:mic" :width="20" :height="20" style="vertical-align: middle" /> Registra
       </button>
       <button :class="{ active: view === 'notes' }" @click="view = 'notes'">
-        📋 Note
+        <Icon icon="lucide:clipboard-list" :width="20" :height="20" style="vertical-align: middle" /> Note
       </button>
     </nav>
     <RecordView v-if="view === 'record'" @uploaded="switchToNotes" />
@@ -16,6 +16,7 @@
 
 <script setup>
 import { ref } from "vue";
+import { Icon } from "@iconify/vue";
 import RecordView from "./views/RecordView.vue";
 import NotesView from "./views/NotesView.vue";
 import DeviceBadge from "./components/DeviceBadge.vue";

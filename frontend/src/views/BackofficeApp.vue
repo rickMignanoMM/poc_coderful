@@ -1,44 +1,45 @@
 <template>
   <div class="bo">
     <header class="bo-header">
-      <h1>📋 Backoffice Note Audio</h1>
+      <h1><Icon icon="lucide:clipboard-list" :width="20" :height="20" style="vertical-align: middle" /> Backoffice Note Audio</h1>
       <DeviceBadge inline />
       <div class="header-right">
         <input v-model="search" class="search" placeholder="Cerca nelle trascrizioni..." />
         <button class="btn-io" @click="exportNotes" title="Esporta note">
-          {{ selectedIds.size > 0 ? `⬇ Export (${selectedIds.size})` : '⬇ Export' }}
+          <Icon icon="lucide:download" :width="16" :height="16" style="vertical-align: middle" /> {{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}
         </button>
-        <button class="btn-io" @click="$refs.importInput.click()" title="Importa note">⬆ Import</button>
+        <button class="btn-io" @click="$refs.importInput.click()" title="Importa note"><Icon icon="lucide:upload" :width="16" :height="16" style="vertical-align: middle" /> Import</button>
         <input ref="importInput" type="file" accept=".json" style="display:none" @change="importNotes" />
         <button class="btn-io btn-audio-import" :disabled="audioUploading" @click="$refs.audioInput.click()" title="Importa file audio">
-          {{ audioUploading ? `⏳ ${audioUploadProgress}` : '🎙 Import Audio' }}
+          <Icon :icon="audioUploading ? 'lucide:loader' : 'lucide:mic'" :width="16" :height="16" style="vertical-align: middle" /> {{ audioUploading ? audioUploadProgress : 'Import Audio' }}
         </button>
         <input ref="audioInput" type="file" accept="audio/*,video/mp4,video/webm,video/quicktime" multiple style="display:none" @change="importAudio" />
         <button class="btn-pulisci" :disabled="cleanupLoading || analysisLoading" @click="startCleanup">
-          {{ cleanupLoading ? "⏳ Pulizia in corso..." : "✨ Sistema note" }}
+          <Icon :icon="cleanupLoading ? 'lucide:loader' : 'lucide:sparkles'" :width="16" :height="16" style="vertical-align: middle" /> {{ cleanupLoading ? "Pulizia in corso..." : "Sistema note" }}
         </button>
 
         <div v-if="selectedIds.size > 0" class="sel-badge">
           {{ selectedIds.size }} selezionat{{ selectedIds.size === 1 ? 'a' : 'e' }}
-          <button class="sel-clear" @click="clearSelection">✕</button>
+          <button class="sel-clear" @click="clearSelection"><Icon icon="lucide:x" :width="14" :height="14" style="vertical-align: middle" /></button>
         </div>
 
         <div class="analisi-split" v-click-outside="() => analysisMenuOpen = false">
           <button class="btn-analisi" :disabled="analysisLoading || cleanupLoading" @click="startAnalysis('tutto')">
-            {{ analysisLoading ? "⏳ Analisi..." : selectedIds.size > 0 ? `🧠 Analizza (${selectedIds.size})` : "🧠 Analizza" }}
+            <Icon :icon="analysisLoading ? 'lucide:loader' : 'lucide:brain'" :width="16" :height="16" style="vertical-align: middle" />
+            <span>{{ analysisLoading ? "Analisi..." : selectedIds.size > 0 ? `Analizza (${selectedIds.size})` : "Analizza" }}</span>
           </button>
           <button class="btn-analisi-arrow" :disabled="analysisLoading || cleanupLoading" @click.stop="analysisMenuOpen = !analysisMenuOpen">▾</button>
           <div v-if="analysisMenuOpen" class="analisi-dropdown">
-            <button @click="startAnalysis('eventi')">📅 Solo eventi e task</button>
-            <button @click="startAnalysis('riassunto')">📊 Solo riassunto</button>
-            <button @click="startAnalysis('suggerimenti')">💡 Solo suggerimenti</button>
-            <button @click="startAnalysis('connessioni')">🔗 Solo connessioni</button>
+            <button @click="startAnalysis('eventi')"><Icon icon="lucide:calendar" :width="16" :height="16" style="vertical-align: middle" /> Solo eventi e task</button>
+            <button @click="startAnalysis('riassunto')"><Icon icon="lucide:bar-chart-2" :width="16" :height="16" style="vertical-align: middle" /> Solo riassunto</button>
+            <button @click="startAnalysis('suggerimenti')"><Icon icon="lucide:lightbulb" :width="16" :height="16" style="vertical-align: middle" /> Solo suggerimenti</button>
+            <button @click="startAnalysis('connessioni')"><Icon icon="lucide:link-2" :width="16" :height="16" style="vertical-align: middle" /> Solo connessioni</button>
           </div>
         </div>
 
-        <button class="btn-testo" :class="{ active: textInputOpen }" @click="textInputOpen = !textInputOpen" title="Aggiungi nota testuale">📝</button>
-        <button class="btn-refresh" @click="loadNotes">↻</button>
-        <button class="btn-8bit" @click="toggle8bit" :title="pixel8bit ? 'Modalità normale' : 'Modalità 8-bit'">{{ pixel8bit ? '🖥️' : '👾' }}</button>
+        <button class="btn-testo" :class="{ active: textInputOpen }" @click="textInputOpen = !textInputOpen" title="Aggiungi nota testuale"><Icon icon="lucide:pen-line" :width="16" :height="16" style="vertical-align: middle" /></button>
+        <button class="btn-refresh" @click="loadNotes"><Icon icon="lucide:refresh-cw" :width="16" :height="16" style="vertical-align: middle" /></button>
+        <button class="btn-8bit" @click="toggle8bit" :title="pixel8bit ? 'Modalità normale' : 'Modalità 8-bit'"><Icon :icon="pixel8bit ? 'lucide:monitor' : 'lucide:gamepad-2'" :width="16" :height="16" style="vertical-align: middle" /></button>
       </div>
     </header>
 
@@ -54,7 +55,7 @@
           @keydown.ctrl.enter="addTextNote"
         />
         <div class="testo-actions">
-          <button class="btn-save" :disabled="!textInput.trim()" @click="addTextNote">✓ Aggiungi nota</button>
+          <button class="btn-save" :disabled="!textInput.trim()" @click="addTextNote"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Aggiungi nota</button>
           <button class="btn-cancel" @click="textInputOpen = false; textInput = ''">Annulla</button>
           <span class="testo-hint">⌘↵ per salvare</span>
         </div>
@@ -62,10 +63,10 @@
     </transition>
 
     <nav class="tab-bar">
-      <button :class="['tab-btn', { active: activeTab === 'note' }]" @click="activeTab = 'note'">📋 Note</button>
-      <button :class="['tab-btn', { active: activeTab === 'stats' }]" @click="activeTab = 'stats'">📊 Stats</button>
+      <button :class="['tab-btn', { active: activeTab === 'note' }]" @click="activeTab = 'note'"><Icon icon="lucide:clipboard-list" :width="20" :height="20" style="vertical-align: middle" /> Note</button>
+      <button :class="['tab-btn', { active: activeTab === 'stats' }]" @click="activeTab = 'stats'"><Icon icon="lucide:bar-chart-2" :width="20" :height="20" style="vertical-align: middle" /> Stats</button>
       <button :class="['tab-btn', { active: activeTab === 'archivio' }]" @click="openArchiveTab">📁 Archivio</button>
-      <button :class="['tab-btn', { active: activeTab === 'chat' }]" @click="activeTab = 'chat'">💬 Chat</button>
+      <button :class="['tab-btn', { active: activeTab === 'chat' }]" @click="activeTab = 'chat'"><Icon icon="lucide:message-circle" :width="20" :height="20" style="vertical-align: middle" /> Chat</button>
     </nav>
 
     <transition name="slide">
@@ -112,7 +113,7 @@
       </div>
     </div>
 
-    <div v-if="analysisError" class="error-bar">⚠️ {{ analysisError }}</div>
+    <div v-if="analysisError" class="error-bar"><Icon icon="lucide:triangle-alert" :width="16" :height="16" style="vertical-align: middle" /> {{ analysisError }}</div>
 
     <!-- NOTE LIST -->
     <BackofficeNotesTab
@@ -172,7 +173,7 @@
         </div>
 
         <div class="stat-card stat-wide">
-          <h3 class="stat-title">📅 Giorno della settimana</h3>
+          <h3 class="stat-title"><Icon icon="lucide:calendar" :width="18" :height="18" style="vertical-align: middle" /> Giorno della settimana</h3>
           <div class="hbar-chart">
             <div v-for="(item, i) in stats.perDay" :key="i" class="hbar-row">
               <div class="hbar-day">{{ item.label }}</div>
@@ -220,7 +221,7 @@
             </template>
             <template v-else>
               <span class="arch-title" @click="startTitleEdit(entry)">{{ entry.titolo || formatDate(entry.generatoIl) }}</span>
-              <button class="btn-edit-title" @click="startTitleEdit(entry)">✏️</button>
+              <button class="btn-edit-title" @click="startTitleEdit(entry)"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
             </template>
           </div>
           <div class="arch-body">
@@ -228,7 +229,7 @@
               <div class="arch-date">{{ formatDate(entry.generatoIl) }}</div>
               <div class="arch-tipi">
                 <span v-for="t in (entry.tipi || [])" :key="t" class="arch-chip">{{ typeLabel(t) }}</span>
-                <span v-if="entry.power" class="power-badge" :title="`${entry.power.joules} J totali`">⚡ {{ entry.power.watts }} W · {{ entry.power.tokPerSec }} tok/s · {{ entry.power.elapsed }}s</span>
+                <span v-if="entry.power" class="power-badge" :title="`${entry.power.joules} J totali`"><Icon icon="lucide:zap" :width="14" :height="14" style="vertical-align: middle" /> {{ entry.power.watts }} W · {{ entry.power.tokPerSec }} tok/s · {{ entry.power.elapsed }}s</span>
               </div>
             </div>
             <div class="arch-preview">
@@ -239,7 +240,7 @@
             </div>
             <div class="arch-actions">
               <button class="btn-arch-view" @click="viewArchiveEntry(entry)">Visualizza</button>
-              <button class="btn-arch-del" @click="deleteArchiveEntry(entry.id)">✕</button>
+              <button class="btn-arch-del" @click="deleteArchiveEntry(entry.id)"><Icon icon="lucide:x" :width="16" :height="16" style="vertical-align: middle" /></button>
             </div>
           </div>
         </div>
@@ -250,7 +251,7 @@
     <div v-else class="chat-wrap">
       <div class="chat-messages" ref="chatScrollEl">
         <div v-if="chatMessages.length === 0 && !chatLoading" class="chat-empty">
-          <div class="chat-empty-icon">{{ chatMode === 'free' ? '🤖' : chatMode === 'notes' ? '📋' : '✏️' }}</div>
+          <div class="chat-empty-icon"><Icon :icon="chatMode === 'free' ? 'lucide:bot' : chatMode === 'notes' ? 'lucide:clipboard-list' : 'lucide:pencil'" :width="32" :height="32" style="vertical-align: middle" /></div>
           <div>{{ chatMode === 'free' ? 'Chat diretta con il modello AI' : chatMode === 'notes' ? 'Cerca nelle note vocali' : 'Correggi il recap corrente' }}</div>
           <div class="chat-suggestions">
             <template v-if="chatMode === 'free'">
@@ -270,8 +271,8 @@
             <div class="bubble-wrap">
               <div v-if="msg.role === 'assistant'" class="bubble md-bubble" v-html="renderMarkdown(msg.content)"></div>
               <div v-else class="bubble">{{ msg.content }}</div>
-              <span v-if="msg.patched" class="patch-applied-badge">✓ Recap aggiornato</span>
-              <span v-if="msg.notesUsed > 0" class="notes-used-badge">📋 {{ msg.notesUsed }} nota{{ msg.notesUsed > 1 ? 'e' : '' }}</span>
+              <span v-if="msg.patched" class="patch-applied-badge"><Icon icon="lucide:check" :width="14" :height="14" style="vertical-align: middle" /> Recap aggiornato</span>
+              <span v-if="msg.notesUsed > 0" class="notes-used-badge"><Icon icon="lucide:file-text" :width="14" :height="14" style="vertical-align: middle" /> {{ msg.notesUsed }} {{ msg.notesUsed > 1 ? 'note' : 'nota' }}</span>
             </div>
           </div>
           <div v-if="chatLoading" class="bubble-row assistant">
@@ -288,15 +289,36 @@
         >{{ s.label }}</button>
       </div>
       <div class="chat-mode-bar">
-        <button :class="['chat-mode-btn', { active: chatMode === 'free' }]" @click="setChatMode('free')">💬 Libera</button>
-        <button :class="['chat-mode-btn', { active: chatMode === 'notes' }]" @click="setChatMode('notes')">📋 Note</button>
+        <button :class="['chat-mode-btn', { active: chatMode === 'free' }]" @click="setChatMode('free')"><Icon icon="lucide:message-circle" :width="16" :height="16" style="vertical-align: middle" /> Libera</button>
+        <button :class="['chat-mode-btn', { active: chatMode === 'notes' }]" @click="setChatMode('notes')"><Icon icon="lucide:clipboard-list" :width="16" :height="16" style="vertical-align: middle" /> Note</button>
         <button
           :class="['chat-mode-btn', { active: chatMode === 'recap' }]"
           :disabled="!analysis"
           :title="!analysis ? 'Esegui prima un\'analisi' : ''"
           @click="setChatMode('recap')"
-        >✏️ Recap</button>
+        ><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /> Recap</button>
       </div>
+
+      <div v-if="chatMode === 'notes'" class="note-selector-bar">
+        <button class="note-sel-toggle" @click="chatNoteSelectorOpen = !chatNoteSelectorOpen">
+          <span v-if="chatNoteIds.length === 0"><Icon icon="lucide:search" :width="16" :height="16" style="vertical-align: middle" /> Auto ({{ chatableNotes.length }} note)</span>
+          <span v-else><Icon icon="lucide:pin" :width="16" :height="16" style="vertical-align: middle" /> {{ chatNoteIds.length }} {{ chatNoteIds.length > 1 ? 'note selezionate' : 'nota selezionata' }}</span>
+          <span class="note-sel-arrow">{{ chatNoteSelectorOpen ? '▴' : '▾' }}</span>
+        </button>
+        <button v-if="chatNoteIds.length > 0" class="note-sel-reset" @click="chatNoteIds = []" title="Torna alla selezione automatica"><Icon icon="lucide:x" :width="14" :height="14" style="vertical-align: middle" /></button>
+        <div v-if="chatNoteSelectorOpen" class="note-sel-list">
+          <button
+            v-for="n in chatableNotes"
+            :key="n.id"
+            :class="['note-sel-chip', { selected: chatNoteIds.includes(n.id) }]"
+            @click="toggleChatNote(n.id)"
+          >
+            <span class="nsc-date">{{ noteChipLabel(n).date }} {{ noteChipLabel(n).time }}</span>
+            <span class="nsc-preview">{{ noteChipLabel(n).preview }}</span>
+          </button>
+        </div>
+      </div>
+
       <div class="chat-input-row">
         <textarea
           v-model="chatInput"
@@ -306,8 +328,8 @@
           :disabled="chatLoading"
           @keydown.enter.exact.prevent="sendMessage"
         />
-        <button v-if="chatLoading" class="chat-stop" @click="stopChat">■</button>
-        <button v-else class="chat-send" :disabled="!chatInput.trim()" @click="sendMessage">↑</button>
+        <button v-if="chatLoading" class="chat-stop" @click="stopChat"><Icon icon="lucide:square" :width="16" :height="16" style="vertical-align: middle" /></button>
+        <button v-else class="chat-send" :disabled="!chatInput.trim()" @click="sendMessage"><Icon icon="lucide:send" :width="16" :height="16" style="vertical-align: middle" /></button>
       </div>
       <div v-if="contextSize > 0 && lastTokensUsed > 0" class="ctx-bar-wrap">
         <div class="ctx-bar-track">
@@ -346,6 +368,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { Icon } from "@iconify/vue";
 import { marked } from "marked";
 import BackofficeAnalysisPanel from "../components/backoffice/BackofficeAnalysisPanel.vue";
 import BackofficeNotesTab from "../components/backoffice/BackofficeNotesTab.vue";
@@ -443,17 +466,39 @@ watch(chatStreaming, (newText) => {
 
 const chatMode = ref("free");
 const recapSection = ref("tutti");
+const chatNoteIds = ref([]);
+const chatNoteSelectorOpen = ref(false);
 const pixel8bit = ref(localStorage.getItem("mode-8bit") === "1");
 const retranscribingIds = ref(new Set());
 const openDays = ref(new Set());
 
 const recapSections = RECAP_SECTIONS;
 
+const chatableNotes = computed(() =>
+  notes.value.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo))
+);
+
+function noteChipLabel(n) {
+  const d = new Date(n.createdAt);
+  const date = d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" });
+  const time = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const preview = (n.sintesi || n.testo_pulito || n.testo || "").slice(0, 45).replace(/\n/g, " ");
+  return { date, time, preview };
+}
+
+function toggleChatNote(id) {
+  const idx = chatNoteIds.value.indexOf(id);
+  if (idx === -1) chatNoteIds.value.push(id);
+  else chatNoteIds.value.splice(idx, 1);
+}
+
 function setChatMode(mode) {
   if (mode === chatMode.value) return;
   chatMode.value = mode;
   chatMessages.value = [];
   chatHistory.value = [];
+  chatNoteIds.value = [];
+  chatNoteSelectorOpen.value = false;
 }
 
 const vClickOutside = {
@@ -660,7 +705,7 @@ async function sendMessage() {
       : null;
     const body = useRecap
       ? { question, history: chatHistory.value, analysis: analysisContext }
-      : { question, history: chatHistory.value, mode: chatMode.value };
+      : { question, history: chatHistory.value, mode: chatMode.value, noteIds: chatNoteIds.value.length > 0 ? chatNoteIds.value : null };
     const res = await apiFetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1162,6 +1207,18 @@ td { padding: 14px 16px; vertical-align: middle; font-size: 14px; }
 .chat-send:disabled { background: #c7c7cc; cursor: not-allowed; }
 .chat-stop { width: 40px; height: 40px; background: #ff3b30; color: #fff; border: none; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
 .chat-stop:hover { background: #d70015; }
+.note-selector-bar { background: #f9f9fb; border-top: 1px solid #e5e5ea; padding: 8px 16px; position: relative; }
+.note-sel-toggle { display: flex; align-items: center; gap: 6px; background: none; border: 1.5px solid #e5e5ea; border-radius: 8px; padding: 5px 10px; font-size: 13px; color: #3a3a3c; cursor: pointer; font-family: inherit; transition: border-color 0.15s; }
+.note-sel-toggle:hover { border-color: #007aff; }
+.note-sel-arrow { margin-left: 4px; font-size: 10px; color: #8e8e93; }
+.note-sel-reset { margin-left: 8px; background: none; border: none; color: #8e8e93; font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.note-sel-reset:hover { color: #ff3b30; }
+.note-sel-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.note-sel-chip { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid #e5e5ea; background: #fff; cursor: pointer; text-align: left; font-family: inherit; transition: all 0.12s; }
+.note-sel-chip:hover { border-color: #007aff; background: #f0f5ff; }
+.note-sel-chip.selected { border-color: #007aff; background: #e8f0ff; }
+.nsc-date { font-size: 11px; font-weight: 700; color: #007aff; white-space: nowrap; flex-shrink: 0; }
+.nsc-preview { font-size: 12px; color: #3a3a3c; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ctx-bar-wrap { display: flex; align-items: center; gap: 10px; padding: 0 24px 10px; background: #fff; }
 .ctx-bar-track { flex: 1; height: 4px; background: #e5e5ea; border-radius: 4px; overflow: hidden; }
 .ctx-bar-fill { height: 100%; background: #34c759; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }

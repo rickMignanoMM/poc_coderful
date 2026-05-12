@@ -29,10 +29,12 @@
                 <div class="card-head-left">
                   <input type="checkbox" class="cb" :checked="selectedIds.has(note.id)" @change="toggleSelect(note.id)" />
                   <span class="card-time">{{ formatTime(note.createdAt) }}</span>
-                  <span class="badge" :class="note.status">{{ note.status === "completata" ? "✓ Fatto" : "⏳ In corso" }}</span>
+                  <span class="badge" :class="note.status">
+                    <Icon v-if="note.status === 'completata'" icon="lucide:check" :width="14" :height="14" style="vertical-align: middle" /> <Icon v-else icon="lucide:loader" :width="14" :height="14" style="vertical-align: middle" /> {{ note.status === "completata" ? "Fatto" : "In corso" }}
+                  </span>
                   <span v-if="note.sentiment?.emoji" class="sent-emoji" :title="note.sentiment?.tono">{{ note.sentiment.emoji }}</span>
                 </div>
-                <button class="btn-delete" @click="deleteNote(note.id)">✕</button>
+                <button class="btn-delete" @click="deleteNote(note.id)"><Icon icon="lucide:x" :width="16" :height="16" style="vertical-align: middle" /></button>
               </div>
 
               <div v-if="note.filename" class="card-audio">
@@ -49,7 +51,7 @@
                     @keydown.escape="cancelEdit"
                   />
                   <div class="edit-actions">
-                    <button class="btn-save" @click="saveEdit(note)">✓ Salva</button>
+                    <button class="btn-save" @click="saveEdit(note)"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Salva</button>
                     <button class="btn-cancel" @click="cancelEdit">Annulla</button>
                   </div>
                 </template>
@@ -57,20 +59,20 @@
                 <template v-else>
                   <div class="text-row">
                     <span>
-                      <span v-if="note.testo_pulito" class="label-pulito">✨</span>
+                      <span v-if="note.testo_pulito" class="label-pulito"><Icon icon="lucide:sparkles" :width="14" :height="14" style="vertical-align: middle" /></span>
                       <span :class="{ 'text-clamped': !expandedIds.has(note.id) }">{{ note.testo_pulito || note.testo || "" }}</span>
                       <span v-if="note.status === 'in_elaborazione'" class="muted">In trascrizione...</span>
                       <span v-else-if="!note.testo" class="muted">
                         Nessun testo trascritto.
                         <button v-if="note.filename" class="btn-retranscribe" :disabled="retranscribingIds.has(note.id)" @click.stop="retranscribe(note)">
-                          {{ retranscribingIds.has(note.id) ? "⏳ Avvio..." : "🔄 Rielabora" }}
+                          <Icon :icon="retranscribingIds.has(note.id) ? 'lucide:loader' : 'lucide:refresh-ccw'" :width="14" :height="14" style="vertical-align: middle" /> {{ retranscribingIds.has(note.id) ? "Avvio..." : "Rielabora" }}
                         </button>
                       </span>
                       <button v-if="note.testo" class="btn-expand" @click.stop="toggleExpand(note.id)">
                         {{ expandedIds.has(note.id) ? "mostra meno ▲" : "mostra tutto ▼" }}
                       </button>
                     </span>
-                    <button v-if="note.testo" class="btn-edit" @click="startEdit(note)">✏️</button>
+                    <button v-if="note.testo" class="btn-edit" @click="startEdit(note)"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
                   </div>
                 </template>
               </div>
@@ -83,6 +85,8 @@
 </template>
 
 <script setup>
+import { Icon } from "@iconify/vue";
+
 defineProps({
   loading: { type: Boolean, default: false },
   groupedByDay: { type: Array, required: true },

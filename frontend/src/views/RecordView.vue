@@ -9,7 +9,7 @@
 
       <button class="record-btn" :class="{ recording }" @click="toggle">
         <span v-if="!recording">●</span>
-        <span v-else>■</span>
+        <span v-else><Icon icon="lucide:square" :width="28" :height="28" style="vertical-align: middle" /></span>
       </button>
       <p class="hint">{{ recording ? "Tocca per fermare" : "Tocca per registrare" }}</p>
     </div>
@@ -30,6 +30,7 @@
 
 <script setup>
 import { computed, onUnmounted, ref } from "vue";
+import { Icon } from "@iconify/vue";
 import { useApi } from "../composables/useApi.js";
 
 const { apiFetch } = useApi();

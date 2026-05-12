@@ -2,17 +2,17 @@
   <div class="analisi-panel">
     <div class="analisi-header">
       <div class="analisi-header-left">
-        <span>🤖 Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
+        <span><Icon icon="lucide:bot" :width="18" :height="18" style="vertical-align: middle" /> Analisi AI — {{ formatDate(analysis.generatoIl) }}</span>
         <span v-if="analysis.power" class="power-badge" :title="`${analysis.power.joules} J totali`">
-          ⚡ {{ analysis.power.watts }} W · {{ analysis.power.tokPerSec }} tok/s · {{ analysis.power.elapsed }}s
+          <Icon icon="lucide:zap" :width="14" :height="14" style="vertical-align: middle" /> {{ analysis.power.watts }} W · {{ analysis.power.tokPerSec }} tok/s · {{ analysis.power.elapsed }}s
         </span>
       </div>
       <div class="analisi-header-actions">
-        <button class="btn-email-recap" @click="showEmailModal = true" title="Invia via mail">📧</button>
+        <button class="btn-email-recap" @click="showEmailModal = true" title="Invia via mail"><Icon icon="lucide:mail" :width="16" :height="16" style="vertical-align: middle" /></button>
         <button class="btn-collapse-panel" @click="$emit('toggle-collapsed')">
           {{ collapsed ? "▼ Espandi" : "▲ Riduci" }}
         </button>
-        <button class="close-btn" @click="$emit('close')">✕</button>
+        <button class="close-btn" @click="$emit('close')"><Icon icon="lucide:x" :width="16" :height="16" style="vertical-align: middle" /></button>
       </div>
     </div>
 
@@ -21,7 +21,7 @@
       <div class="email-modal">
         <div class="email-modal-header">
           <span>📧 Riepilogo</span>
-          <button class="close-btn" @click="showEmailModal = false">✕</button>
+          <button class="close-btn" @click="showEmailModal = false"><Icon icon="lucide:x" :width="16" :height="16" style="vertical-align: middle" /></button>
         </div>
 
         <div class="email-preview">
@@ -33,7 +33,7 @@
 
           <!-- Riassunto -->
           <div v-if="analysis.riassunto" class="ep-section">
-            <div class="ep-section-label">📊 Riassunto</div>
+            <div class="ep-section-label"><Icon icon="lucide:bar-chart-2" :width="16" :height="16" style="vertical-align: middle" /> Riassunto</div>
             <div v-if="analysis.riassunto.contesto" class="ep-row">
               <span class="ep-key">Contesto</span>
               <span class="ep-val">{{ analysis.riassunto.contesto }}</span>
@@ -53,7 +53,7 @@
 
           <!-- Eventi -->
           <div v-if="analysis.eventi?.eventi?.length" class="ep-section">
-            <div class="ep-section-label">📅 Eventi & Task</div>
+            <div class="ep-section-label"><Icon icon="lucide:calendar" :width="16" :height="16" style="vertical-align: middle" /> Eventi & Task</div>
             <div v-for="ev in analysis.eventi.eventi" :key="ev.titolo" class="ep-item">
               <div class="ep-item-top">
                 <span class="ep-item-title">{{ ev.titolo }}</span>
@@ -66,7 +66,7 @@
 
           <!-- Suggerimenti -->
           <div v-if="analysis.suggerimenti?.suggerimenti?.length" class="ep-section">
-            <div class="ep-section-label">💡 Suggerimenti</div>
+            <div class="ep-section-label"><Icon icon="lucide:lightbulb" :width="16" :height="16" style="vertical-align: middle" /> Suggerimenti</div>
             <div v-for="s in analysis.suggerimenti.suggerimenti" :key="s.titolo" class="ep-item">
               <div class="ep-item-top">
                 <span class="ep-item-title">{{ s.titolo }}</span>
@@ -78,7 +78,7 @@
 
           <!-- Connessioni -->
           <div v-if="analysis.connessioni?.connessioni?.length" class="ep-section">
-            <div class="ep-section-label">🔗 Connessioni tematiche</div>
+            <div class="ep-section-label"><Icon icon="lucide:link-2" :width="16" :height="16" style="vertical-align: middle" /> Connessioni tematiche</div>
             <div v-for="c in analysis.connessioni.connessioni" :key="c.tema" class="ep-conn">
               <div class="ep-conn-tema">{{ c.tema }}</div>
               <div v-if="c.descrizione" class="ep-item-meta">{{ c.descrizione }}</div>
@@ -91,16 +91,16 @@
 
         <div class="email-modal-actions">
           <button class="btn-copy-email" :class="{ copied: emailCopied }" @click="copyEmailText(analysis)">
-            {{ emailCopied ? '✓ Copiato!' : '📋 Copia testo' }}
+            <Icon :icon="emailCopied ? 'lucide:check' : 'lucide:clipboard-list'" :width="16" :height="16" style="vertical-align: middle" /> {{ emailCopied ? 'Copiato!' : 'Copia testo' }}
           </button>
-          <button class="btn-mailto" @click="openMailto(analysis)">✉️ Apri nel client mail</button>
+          <button class="btn-mailto" @click="openMailto(analysis)"><Icon icon="lucide:mail" :width="16" :height="16" style="vertical-align: middle" /> Apri nel client mail</button>
         </div>
       </div>
     </div>
 
     <div v-show="!collapsed" class="analisi-cards">
       <div v-if="analysis.eventi" class="acard">
-        <h3>📅 Eventi & Task</h3>
+        <h3><Icon icon="lucide:calendar" :width="18" :height="18" style="vertical-align: middle" /> Eventi & Task</h3>
         <div v-if="!analysis.eventi?.eventi?.length" class="acard-empty">Nessun evento rilevato</div>
         <div v-else class="eventi-list">
           <div v-for="(eventItem, idx) in analysis.eventi.eventi" :key="idx" class="evento">
@@ -114,7 +114,7 @@
                 <option value="bassa">Bassa</option>
               </select>
               <div class="ev-edit-actions">
-                <button class="btn-save" @click="saveEventEdit">✓ Salva</button>
+                <button class="btn-save" @click="saveEventEdit"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Salva</button>
                 <button class="btn-cancel" @click="cancelEventEdit">Annulla</button>
               </div>
             </template>
@@ -123,8 +123,8 @@
                 <span class="evento-titolo">{{ eventItem.titolo }}</span>
                 <div class="evento-header-right">
                   <span class="badge-prio" :class="eventItem.priorita">{{ eventItem.priorita }}</span>
-                  <button class="btn-ev-edit" @click="startEventEdit(eventItem, idx)" title="Modifica">✏️</button>
-                  <a :href="buildCalendarUrl(eventItem)" target="_blank" rel="noopener" class="btn-gcal" title="Aggiungi a Google Calendar">📅</a>
+                  <button class="btn-ev-edit" @click="startEventEdit(eventItem, idx)" title="Modifica"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
+                  <a :href="buildCalendarUrl(eventItem)" target="_blank" rel="noopener" class="btn-gcal" title="Aggiungi a Google Calendar"><Icon icon="lucide:calendar" :width="16" :height="16" style="vertical-align: middle" /></a>
                 </div>
               </div>
               <div v-if="eventItem.data" class="evento-meta">📆 {{ eventItem.data }}</div>
@@ -136,8 +136,8 @@
 
       <div v-if="analysis.riassunto" class="acard">
         <div class="acard-title-row">
-          <h3>📊 Riassunto</h3>
-          <button v-if="!editingSummaryModel" class="btn-acard-edit" @click="startSummaryEdit">✏️</button>
+          <h3><Icon icon="lucide:bar-chart-2" :width="18" :height="18" style="vertical-align: middle" /> Riassunto</h3>
+          <button v-if="!editingSummaryModel" class="btn-acard-edit" @click="startSummaryEdit"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
         </div>
         <template v-if="editingSummaryModel">
           <div class="rv-field"><label>Contesto</label><input v-model="editingSummaryValModel.contesto" class="ev-input" /></div>
@@ -145,7 +145,7 @@
           <div class="rv-field"><label>Argomenti (uno per riga)</label><textarea v-model="editingSummaryValModel.argomenti" class="ev-input rv-textarea" rows="3" /></div>
           <div class="rv-field"><label>Sintesi</label><textarea v-model="editingSummaryValModel.sintesi" class="ev-input rv-textarea" rows="3" /></div>
           <div class="ev-edit-actions">
-            <button class="btn-save" @click="saveSummary">✓ Salva</button>
+            <button class="btn-save" @click="saveSummary"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Salva</button>
             <button class="btn-cancel" @click="editingSummaryModel = false">Annulla</button>
           </div>
         </template>
@@ -165,7 +165,7 @@
       </div>
 
       <div v-if="analysis.suggerimenti" class="acard">
-        <h3>💡 Suggerimenti</h3>
+        <h3><Icon icon="lucide:lightbulb" :width="18" :height="18" style="vertical-align: middle" /> Suggerimenti</h3>
         <div v-if="!analysis.suggerimenti?.suggerimenti?.length" class="acard-empty">Nessun suggerimento</div>
         <div v-else class="suggerimenti-list">
           <div v-for="(suggestion, idx) in analysis.suggerimenti.suggerimenti" :key="idx" class="suggerimento">
@@ -178,7 +178,7 @@
                 <option value="bassa">Bassa</option>
               </select>
               <div class="ev-edit-actions">
-                <button class="btn-save" @click="saveSuggestion">✓ Salva</button>
+                <button class="btn-save" @click="saveSuggestion"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Salva</button>
                 <button class="btn-cancel" @click="editingSuggestionIdx = null">Annulla</button>
               </div>
             </template>
@@ -187,7 +187,7 @@
                 <span class="sug-titolo">{{ suggestion.titolo }}</span>
                 <div class="sug-header-right">
                   <span class="badge-prio" :class="suggestion.priorita">{{ suggestion.priorita }}</span>
-                  <button class="btn-ev-edit" @click="startSuggestionEdit(suggestion, idx)">✏️</button>
+                  <button class="btn-ev-edit" @click="startSuggestionEdit(suggestion, idx)"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
                 </div>
               </div>
               <div class="sug-desc">{{ suggestion.descrizione }}</div>
@@ -197,7 +197,7 @@
       </div>
 
       <div v-if="analysis.connessioni" class="acard acard-full">
-        <h3>🔗 Connessioni tematiche</h3>
+        <h3><Icon icon="lucide:link-2" :width="18" :height="18" style="vertical-align: middle" /> Connessioni tematiche</h3>
         <div v-if="!analysis.connessioni?.connessioni?.length" class="acard-empty">Nessuna connessione significativa rilevata</div>
         <div v-else class="connessioni-list">
           <div v-for="(connection, idx) in analysis.connessioni.connessioni" :key="idx" class="connessione">
@@ -206,14 +206,14 @@
               <div class="rv-field"><label>Descrizione</label><textarea v-model="editingConnectionModel.descrizione" class="ev-input rv-textarea" rows="2" /></div>
               <div class="rv-field"><label>Note collegate (una per riga)</label><textarea v-model="editingConnectionModel.note" class="ev-input rv-textarea" rows="2" /></div>
               <div class="ev-edit-actions">
-                <button class="btn-save" @click="saveConnection">✓ Salva</button>
+                <button class="btn-save" @click="saveConnection"><Icon icon="lucide:check" :width="16" :height="16" style="vertical-align: middle" /> Salva</button>
                 <button class="btn-cancel" @click="editingConnectionIdx = null">Annulla</button>
               </div>
             </template>
             <template v-else>
               <div class="conn-header">
                 <div class="conn-tema">{{ connection.tema }}</div>
-                <button class="btn-ev-edit" @click="startConnectionEdit(connection, idx)">✏️</button>
+                <button class="btn-ev-edit" @click="startConnectionEdit(connection, idx)"><Icon icon="lucide:pencil" :width="16" :height="16" style="vertical-align: middle" /></button>
               </div>
               <div class="conn-desc">{{ connection.descrizione }}</div>
               <div v-if="connection.note?.length" class="conn-note">{{ connection.note.join(" · ") }}</div>
@@ -227,6 +227,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { Icon } from '@iconify/vue';
 
 const showEmailModal = ref(false);
 const emailCopied = ref(false);
