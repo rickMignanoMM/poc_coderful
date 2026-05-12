@@ -12,6 +12,20 @@
         <span v-else><Icon icon="lucide:square" :width="28" :height="28" style="vertical-align: middle" /></span>
       </button>
       <p class="hint">{{ recording ? "Tocca per fermare" : "Tocca per registrare" }}</p>
+
+      <div class="wake-row">
+        <label class="wake-toggle">
+          <input type="checkbox" v-model="wakeWord.enabled.value" />
+          <span class="toggle-track"><span class="toggle-thumb" /></span>
+          <span class="toggle-label">Wake word</span>
+        </label>
+        <transition name="fade">
+          <span v-if="wakeWord.listening.value" class="wake-indicator">
+            <span class="pulse-dot" />
+            Ascolto "KUBI REGISTRA"
+          </span>
+        </transition>
+      </div>
     </div>
 
     <div v-if="blob" class="preview-card">
@@ -32,6 +46,7 @@
 import { computed, onUnmounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
 import { useApi } from "../composables/useApi.js";
+import { useWakeWord } from "../composables/useWakeWord.js";
 
 const { apiFetch } = useApi();
 
@@ -49,6 +64,8 @@ let chunks = [];
 let timer = null;
 let mediaStream = null;
 let messageTimeout = null;
+
+const wakeWord = useWakeWord({ onTriggered: () => start() });
 
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const audioExtension = computed(() => {
@@ -72,6 +89,10 @@ function getMimeType() {
 }
 
 async function start() {
+  // Stop wake word listener before opening mic for recording
+  wakeWord.stopLoop();
+  await new Promise((r) => setTimeout(r, 100));
+
   chunks = [];
   resetPreview();
   seconds.value = 0;
@@ -86,6 +107,10 @@ async function start() {
     revokeAudioUrl();
     audioUrl.value = URL.createObjectURL(blob.value);
     stopMediaStream();
+    // Restart wake word listener after recording ends
+    if (wakeWord.enabled.value) {
+      setTimeout(() => wakeWord.startLoop(), 500);
+    }
   };
   mediaRecorder.start();
   recording.value = true;
@@ -270,4 +295,87 @@ audio { width: 100%; }
 
 .toast.success { background: #34c759; color: #fff; }
 .toast.error { background: #ff3b30; color: #fff; }
+
+/* Wake word */
+.wake-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.wake-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.wake-toggle input {
+  display: none;
+}
+
+.toggle-track {
+  width: 40px;
+  height: 24px;
+  background: #c7c7cc;
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.wake-toggle input:checked + .toggle-track {
+  background: #34c759;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.wake-toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(16px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #3c3c43;
+  font-weight: 500;
+}
+
+.wake-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #34c759;
+  font-weight: 500;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #34c759;
+  border-radius: 50%;
+  animation: pulse-ring 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

@@ -181,6 +181,26 @@ app.post("/api/audio", upload.single("audio"), (req, res) => {
   });
 });
 
+app.post("/api/wake", upload.single("audio"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "no audio" });
+  const tmpPath = req.file.path;
+  const mp3Path = tmpPath.replace(/\.[^.]+$/, ".mp3");
+  try {
+    await new Promise((resolve, reject) => {
+      const conv = spawn("ffmpeg", ["-y", "-i", tmpPath, "-q:a", "4", mp3Path]);
+      conv.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exit ${code}`))));
+    });
+    if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+    const transcript = await whisperTranscribe(mp3Path);
+    if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
+    res.json({ transcript });
+  } catch (err) {
+    try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+    try { if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path); } catch {}
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/pulisci", (req, res) => {
   const jobId = createJob();
   res.json({ jobId });
@@ -243,13 +263,13 @@ app.post("/api/chat-recap", (req, res) => {
 });
 
 app.post("/api/chat", (req, res) => {
-  const { question, history, mode } = req.body;
+  const { question, history, mode, noteIds } = req.body;
   if (!question) return res.status(400).json({ error: "Domanda mancante" });
   const jobId = createJob();
   res.json({ jobId });
   const fn = mode === "free"
     ? chatFree(question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId))
-    : chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId));
+    : chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId), noteIds || null);
   fn.then((result) => updateJob(jobId, "completed", result))
     .catch((err) => {
       if (err.name === "AbortError") updateJob(jobId, "cancelled");
