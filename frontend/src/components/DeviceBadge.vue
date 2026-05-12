@@ -1,6 +1,16 @@
 <template>
+  <!-- Inline chip (header) -->
+  <button v-if="inline && deviceName" class="device-chip" :class="deviceClass" @click="modalOpen = true">
+    <span class="device-dot"></span>
+    <div class="device-info">
+      <span class="device-name">{{ deviceName }}</span>
+      <span class="device-subtitle">{{ [deviceSubtitle, aiModel].filter(Boolean).join(' · ') }}</span>
+    </div>
+  </button>
+
+  <!-- Floating badge + modal teleported together -->
   <teleport to="body">
-    <div v-if="deviceName" class="device-badge" :class="deviceClass" @click="modalOpen = true" title="Clicca per i dettagli">
+    <div v-if="!inline && deviceName" class="device-badge" :class="deviceClass" @click="modalOpen = true" title="Clicca per i dettagli">
       <span class="device-dot"></span>
       <div class="device-info">
         <span class="device-name">{{ deviceName }}</span>
@@ -20,6 +30,11 @@
         </div>
 
         <div class="device-modal-body">
+          <div v-if="aiModel" class="device-model-row">
+            <span class="device-spec-section-title">Modello AI</span>
+            <span class="device-model-name">{{ aiModel }}</span>
+          </div>
+
           <div v-if="deviceSpecs">
             <div v-for="(section, sectionKey) in deviceSpecs" :key="sectionKey" class="device-spec-section">
               <div class="device-spec-section-title">{{ sectionKey }}</div>
@@ -33,7 +48,6 @@
           </div>
           <div v-else class="device-modal-empty">Nessuna specifica configurata.</div>
 
-          <!-- Backend switcher -->
           <div class="backend-section">
             <div class="device-spec-section-title">Backend</div>
             <div class="backend-list">
@@ -62,11 +76,16 @@
 import { ref, computed, onMounted } from "vue";
 import { useApi } from "../composables/useApi.js";
 
+defineProps({
+  inline: { type: Boolean, default: false },
+});
+
 const { baseUrl, setBackend, apiFetch } = useApi();
 
 const deviceName = ref("");
 const deviceSubtitle = ref("");
 const deviceSpecs = ref(null);
+const aiModel = ref("");
 const peers = ref([]);
 const modalOpen = ref(false);
 const switching = ref(false);
@@ -93,6 +112,7 @@ async function fetchConfig() {
   deviceName.value = config.deviceName || "";
   deviceSubtitle.value = config.deviceSubtitle || "";
   deviceSpecs.value = config.deviceSpecs || null;
+  aiModel.value = config.aiModel || "";
   peers.value = config.peers || [];
 }
 
@@ -116,17 +136,39 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ── Inline chip (header) ── */
+.device-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.device-chip:hover { background: rgba(255,255,255,0.16); }
+.device-chip.device-tuxedo { border-color: rgba(88,86,214,0.5); background: rgba(88,86,214,0.25); }
+.device-chip.device-jetson  { border-color: rgba(52,199,89,0.5);  background: rgba(52,199,89,0.2); }
+
+/* ── Floating badge (mobile/legacy) ── */
 .device-badge { position: fixed; bottom: 100px; left: 20px; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; backdrop-filter: blur(12px); z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
 .device-tuxedo { background: rgba(88, 86, 214, 0.92); color: #fff; }
 .device-jetson  { background: rgba(52, 199, 89, 0.92); color: #fff; }
 .device-default { background: rgba(30, 30, 30, 0.88); color: #fff; }
+
 .device-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.9); animation: pulse-dot 2s infinite; flex-shrink: 0; }
 .device-dot-lg { width: 12px; height: 12px; flex-shrink: 0; }
 @keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 .device-info { display: flex; flex-direction: column; gap: 1px; }
 .device-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
-.device-subtitle { font-size: 10px; opacity: 0.8; line-height: 1.2; }
+.device-subtitle { font-size: 10px; opacity: 0.75; line-height: 1.2; }
 
+/* ── Modal ── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
 .modal-box { background: #fff; border-radius: 16px; width: 90%; max-width: 480px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); overflow: hidden; }
 .device-modal-box { padding: 0; }
@@ -137,6 +179,8 @@ onMounted(async () => {
 .device-modal-close:hover { background: rgba(255,255,255,0.35); }
 .device-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
 .device-modal-empty { color: #8e8e93; font-size: 14px; }
+.device-model-row { display: flex; flex-direction: column; gap: 4px; }
+.device-model-name { font-size: 14px; font-weight: 600; color: #1d1d1f; }
 .device-spec-section-title { font-size: 11px; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
 .device-spec-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
 .spec-key { font-size: 13px; color: #8e8e93; white-space: nowrap; }

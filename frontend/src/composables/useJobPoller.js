@@ -7,6 +7,7 @@ export function useJobPoller(apiFetch) {
       onError = () => {},
       onLogs = null,
       onStream = null,
+      signal = null,
     } = {},
   ) {
     return new Promise((resolve) => {
@@ -33,6 +34,13 @@ export function useJobPoller(apiFetch) {
           resolve();
         }
       }, intervalMs);
+
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          clearInterval(interval);
+          resolve();
+        });
+      }
     });
   }
 

@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
@@ -12,8 +12,12 @@ const { analyzeType, cleanNotes, chatFree, chatWithNotes, chatWithRecap } = requ
 const jobs = {};
 function createJob() {
   const id = Date.now().toString();
-  jobs[id] = { status: "pending", result: null, error: null, logs: [], streaming: "" };
+  const abortController = new AbortController();
+  jobs[id] = { status: "pending", result: null, error: null, logs: [], streaming: "", abortController };
   return id;
+}
+function getSignal(id) {
+  return jobs[id]?.abortController.signal;
 }
 function addLog(id, line) {
   if (jobs[id]) jobs[id].logs.push(line);
@@ -95,17 +99,31 @@ function saveNotes(notes) {
   fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
 }
 
-app.get("/api/config", (req, res) => {
+let cachedContextSize = 0;
+async function fetchContextSize() {
+  if (cachedContextSize) return cachedContextSize;
+  try {
+    const aiBase = process.env.AI_BASE_URL || "http://127.0.0.1:8080";
+    const res = await fetch(`${aiBase}/props`, { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    cachedContextSize = data.default_generation_settings?.n_ctx || 0;
+  } catch {}
+  return cachedContextSize;
+}
+
+app.get("/api/config", async (req, res) => {
   let specs = null;
   let peers = [];
   try { specs = JSON.parse(process.env.DEVICE_SPECS || "null"); } catch {}
   try { peers = JSON.parse(process.env.PEERS || "[]"); } catch {}
+  const contextSize = await fetchContextSize();
   res.json({
     deviceName: process.env.DEVICE_NAME || "Dispositivo",
     deviceSubtitle: process.env.DEVICE_SUBTITLE || "",
     deviceSpecs: specs,
     peers,
     aiModel: process.env.AI_MODEL || null,
+    contextSize,
   });
 });
 
@@ -216,9 +234,12 @@ app.post("/api/chat-recap", (req, res) => {
   if (!analysis) return res.status(400).json({ error: "Analisi mancante" });
   const jobId = createJob();
   res.json({ jobId });
-  chatWithRecap(analysis, question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
+  chatWithRecap(analysis, question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId))
     .then((result) => updateJob(jobId, "completed", result))
-    .catch((err) => updateJob(jobId, "failed", null, err.message));
+    .catch((err) => {
+      if (err.name === "AbortError") updateJob(jobId, "cancelled");
+      else updateJob(jobId, "failed", null, err.message);
+    });
 });
 
 app.post("/api/chat", (req, res) => {
@@ -227,10 +248,20 @@ app.post("/api/chat", (req, res) => {
   const jobId = createJob();
   res.json({ jobId });
   const fn = mode === "free"
-    ? chatFree(question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text))
-    : chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text));
+    ? chatFree(question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId))
+    : chatWithNotes(readNotes(), question, history || [], (line) => addLog(jobId, line), (text) => updateStreaming(jobId, text), getSignal(jobId));
   fn.then((result) => updateJob(jobId, "completed", result))
-    .catch((err) => updateJob(jobId, "failed", null, err.message));
+    .catch((err) => {
+      if (err.name === "AbortError") updateJob(jobId, "cancelled");
+      else updateJob(jobId, "failed", null, err.message);
+    });
+});
+
+app.post("/api/job/:id/cancel", (req, res) => {
+  const job = jobs[req.params.id];
+  if (!job) return res.status(404).json({ error: "Job non trovato" });
+  job.abortController.abort();
+  res.json({ ok: true });
 });
 
 app.get("/api/job/:id", (req, res) => {

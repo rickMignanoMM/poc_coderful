@@ -34,8 +34,10 @@ const PROMPT_FREE = `Sei un assistente AI. Rispondi sempre in italiano, in modo 
 
 const PROMPT_CHAT = `Sei un assistente personale che risponde a domande sulle note vocali dell'utente.
 Le note sono trascrizioni di messaggi vocali registrati dall'utente in italiano, con data e ora.
+Ti viene fornito un indice di TUTTE le note (con data e breve sintesi) e, se disponibile, il contenuto esteso delle note più rilevanti.
+Usa l'indice per rispondere a domande su conteggi, date, o panoramiche generali.
+Usa il contenuto esteso per rispondere a domande sul dettaglio di specifiche note.
 Rispondi sempre in italiano, in modo conciso e diretto.
-Usa solo le informazioni presenti nelle note fornite.
 Se la risposta non è nelle note, dillo chiaramente senza inventare nulla.`;
 
 const PROMPT_CHAT_RECAP = `Sei un assistente che corregge e migliora analisi di note vocali in italiano.
@@ -75,7 +77,7 @@ function emitLog(msg, startTime, onLog) {
   onLog(`[${elapsed}] ${msg}`);
 }
 
-async function llamaChat(messages, onStream) {
+async function llamaChat(messages, onStream, signal) {
   const res = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86,6 +88,7 @@ async function llamaChat(messages, onStream) {
       stream_options: { include_usage: true },
       max_tokens: 4096,
     }),
+    signal,
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -94,6 +97,7 @@ async function llamaChat(messages, onStream) {
 
   let fullContent = "";
   let evalCount = 0;
+  let promptCount = 0;
   let tokPerSec = 0;
   let firstTokenTime = null;
   const reader = res.body.getReader();
@@ -123,8 +127,10 @@ async function llamaChat(messages, onStream) {
           evalCount = chunk.timings.predicted_n;
           tokPerSec = chunk.timings.predicted_per_second || 0;
         }
-        // Ollama / OpenAI: usage in final chunk
+        if (chunk.timings?.prompt_n) promptCount = chunk.timings.prompt_n;
+        // OpenAI / Ollama: usage in final chunk
         if (chunk.usage?.completion_tokens) evalCount = chunk.usage.completion_tokens;
+        if (chunk.usage?.prompt_tokens) promptCount = chunk.usage.prompt_tokens;
       } catch {}
     }
   }
@@ -135,7 +141,7 @@ async function llamaChat(messages, onStream) {
     if (elapsed > 0) tokPerSec = evalCount / elapsed;
   }
 
-  return { content: fullContent.trim(), evalCount, tokPerSec };
+  return { content: fullContent.trim(), evalCount, promptCount, tokPerSec };
 }
 
 function extractJson(text) {
@@ -158,18 +164,34 @@ function currentDateRome() {
   });
 }
 
+const MAX_NOTE_CHARS = 400;
+const MAX_HISTORY_TURNS = 4;
+const MAX_INDEX_NOTES = 50;
+
+function formatNoteDate(createdAt) {
+  try {
+    return new Date(createdAt).toLocaleString("it-IT", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return ""; }
+}
+
+function buildNoteIndex(notes) {
+  return notes.slice(0, MAX_INDEX_NOTES).map((n, i) => {
+    const date = formatNoteDate(n.createdAt);
+    const summary = (n.sintesi || n.testo_pulito || n.testo || "").slice(0, 80).replace(/\n/g, " ");
+    return `[${i + 1}] ${date} — ${summary}`;
+  }).join("\n");
+}
+
 function buildContext(notes, useSummary = false) {
   return notes.map((n) => {
-    const text = useSummary
+    let text = useSummary
       ? (n.sintesi || n.testo_pulito || n.testo || "")
       : (n.testo_pulito || n.testo || "");
-    let date = "";
-    try {
-      date = new Date(n.createdAt).toLocaleString("it-IT", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-      });
-    } catch {}
+    if (text.length > MAX_NOTE_CHARS) text = text.slice(0, MAX_NOTE_CHARS) + "…";
+    const date = formatNoteDate(n.createdAt);
     return `[${date}] ${text}`;
   }).join("\n");
 }
@@ -278,11 +300,12 @@ function searchNotes(notes, question) {
     .map((x) => x.n);
 }
 
-async function chatFree(question, history, onLog, onStream) {
+async function chatFree(question, history, onLog, onStream, signal) {
   const startTime = Date.now();
+  const recentHistory = history.slice(-MAX_HISTORY_TURNS);
   const messages = [
     { role: "system", content: `${PROMPT_FREE}\n\nData e ora attuale: ${currentDateRome()}` },
-    ...history.flatMap((t) => [
+    ...recentHistory.flatMap((t) => [
       { role: "user", content: t.user },
       { role: "assistant", content: t.assistant },
     ]),
@@ -290,32 +313,41 @@ async function chatFree(question, history, onLog, onStream) {
   ];
   emitLog("Rispondo...", startTime, onLog);
   if (onStream) onStream("");
-  const { content: reply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  const { content: reply, evalCount, promptCount, tokPerSec } = await llamaChat(messages, onStream, signal);
   if (onStream) onStream("");
-  if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
-  return { reply };
+  if (evalCount) emitLog(`↳ prompt ${promptCount} tok · gen ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+  return { reply, tokensUsed: promptCount + evalCount };
 }
 
-async function chatWithNotes(notes, question, history, onLog, onStream) {
+async function chatWithNotes(notes, question, history, onLog, onStream, signal) {
   const validNotes = notes.filter((n) => n.status === "completata" && (n.testo_pulito || n.testo));
   const startTime = Date.now();
-  const relevant = searchNotes(validNotes, question);
-  const notesUsed = relevant.length;
 
-  if (notesUsed === 0) {
-    emitLog("Nessuna nota rilevante — rispondo senza contesto.", startTime, onLog);
+  // Always include a compact index of all notes so the model can answer metadata questions
+  const noteIndex = buildNoteIndex(validNotes);
+
+  // Include extended content only for keyword-relevant notes
+  const relevant = searchNotes(validNotes, question);
+  const extendedContext = relevant.length > 0 ? buildContext(relevant, true) : "";
+
+  if (validNotes.length === 0) {
+    emitLog("Nessuna nota disponibile.", startTime, onLog);
   } else {
-    emitLog(`Trovate ${notesUsed} note rilevanti...`, startTime, onLog);
+    const msg = relevant.length > 0
+      ? `Indice ${validNotes.length} note · ${relevant.length} con contenuto esteso`
+      : `Indice ${validNotes.length} note (nessuna keyword match)`;
+    emitLog(msg, startTime, onLog);
   }
 
-  const context = notesUsed > 0 ? buildContext(relevant, true) : "";
-  const systemContent = notesUsed > 0
-    ? `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nNote rilevanti:\n${context}`
-    : `${PROMPT_FREE}\n\nData e ora attuale: ${currentDateRome()}`;
+  const systemContent = validNotes.length === 0
+    ? `${PROMPT_FREE}\n\nData e ora attuale: ${currentDateRome()}`
+    : `${PROMPT_CHAT}\n\nData e ora attuale (fuso orario Roma): ${currentDateRome()}\n\nIndice note (${validNotes.length} totali):\n${noteIndex}` +
+      (extendedContext ? `\n\nContenuto esteso note rilevanti:\n${extendedContext}` : "");
 
+  const recentHistory = history.slice(-MAX_HISTORY_TURNS);
   const messages = [
     { role: "system", content: systemContent },
-    ...history.flatMap((t) => [
+    ...recentHistory.flatMap((t) => [
       { role: "user", content: t.user },
       { role: "assistant", content: t.assistant },
     ]),
@@ -323,20 +355,21 @@ async function chatWithNotes(notes, question, history, onLog, onStream) {
   ];
 
   if (onStream) onStream("");
-  const { content: reply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  const { content: reply, evalCount, promptCount, tokPerSec } = await llamaChat(messages, onStream, signal);
   if (onStream) onStream("");
-  if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
-  return { reply, notesUsed };
+  if (evalCount) emitLog(`↳ prompt ${promptCount} tok · gen ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+  return { reply, notesUsed: relevant.length, tokensUsed: promptCount + evalCount };
 }
 
-async function chatWithRecap(analysis, question, history, onLog, onStream) {
+async function chatWithRecap(analysis, question, history, onLog, onStream, signal) {
   const startTime = Date.now();
+  const recentHistory = history.slice(-MAX_HISTORY_TURNS);
   const messages = [
     {
       role: "system",
       content: `${PROMPT_CHAT_RECAP}\n\nAnalisi attuale:\n${JSON.stringify(analysis, null, 2)}`,
     },
-    ...history.flatMap((t) => [
+    ...recentHistory.flatMap((t) => [
       { role: "user", content: t.user },
       { role: "assistant", content: t.assistant },
     ]),
@@ -345,9 +378,10 @@ async function chatWithRecap(analysis, question, history, onLog, onStream) {
 
   emitLog("Rispondo...", startTime, onLog);
   if (onStream) onStream("");
-  const { content: rawReply, evalCount, tokPerSec } = await llamaChat(messages, onStream);
+  const { content: rawReply, evalCount, promptCount, tokPerSec } = await llamaChat(messages, onStream, signal);
   if (onStream) onStream("");
-  if (evalCount) emitLog(`↳ ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+  if (evalCount) emitLog(`↳ prompt ${promptCount} tok · gen ${evalCount} tok · ${tokPerSec.toFixed(1)} tok/s`, startTime, onLog);
+  const tokensUsed = promptCount + evalCount;
 
   let patch = null;
   const patchMatch = rawReply.match(/<patch>([\s\S]*?)<\/patch>/);
@@ -359,7 +393,7 @@ async function chatWithRecap(analysis, question, history, onLog, onStream) {
     if (fallback?.sezione && fallback?.data) patch = fallback;
   }
   const reply = rawReply.replace(/<patch>[\s\S]*?<\/patch>/g, "").trim();
-  return { reply, patch };
+  return { reply, patch, tokensUsed };
 }
 
 module.exports = { cleanNotes, analyzeType, chatFree, chatWithNotes, chatWithRecap };
