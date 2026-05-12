@@ -534,7 +534,7 @@
       <div class="log-line"><span class="ts">[00:28]</span> 2/4 <span class="mg">riassunto</span>...</div>
       <div class="log-line"><span class="ts">[00:41]</span> 3/4 <span class="mg">suggerimenti</span>...</div>
       <div class="log-line"><span class="ts">[00:55]</span> 4/4 <span class="mg">connessioni tra note</span>...</div>
-      <div class="log-line"><span class="ts">[01:08]</span> <span class="hl">↳ 1.124 tok · 18.7 tok/s</span> </div>
+      <div class="log-line"><span class="ts">[01:08]</span> <span class="hl">↳ 1.124 tok · 18.7 tok/s</span></div>
       <div class="log-line"><span class="ts">[01:08]</span> Analisi completata <span class="hl">✓</span></div>
     </div>
     <div class="power-badge-demo">⚡ 14.2 W &nbsp;·&nbsp; 18.7 tok/s &nbsp;·&nbsp; 68s</div>
@@ -588,38 +588,50 @@
   <!-- ── SLIDE 7: BENCHMARK ── -->
   <div class="slide slide-content" data-section="Demo · Benchmark">
     <div class="kicker">Demo 4 di 4</div>
-    <h2>Benchmark Live <span class="cyan">CPU vs Jetson</span></h2>
-    <div class="bullets">
+    <h2>CPU vs Jetson — <span class="cyan">risultati reali</span></h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px;">
+      <!-- Tuxedo -->
+      <div style="background:#0d1f38; border:1.5px solid #8b89ff; border-radius:14px; padding:20px;">
+        <div style="font-size:11px; font-weight:700; color:#8b89ff; letter-spacing:.6px; text-transform:uppercase; margin-bottom:12px;">💻 Tuxedo PC · CPU</div>
+        <div style="display:flex; gap:16px; align-items:flex-end;">
+          <div>
+            <div style="font-size:38px; font-weight:800; color:#8b89ff; line-height:1;">~19</div>
+            <div style="font-size:12px; color:var(--fg2); margin-top:2px;">tok/s</div>
+          </div>
+          <div>
+            <div style="font-size:38px; font-weight:800; color:#f5c542; line-height:1;">~14</div>
+            <div style="font-size:12px; color:var(--fg2); margin-top:2px;">Watt</div>
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:12px; color:var(--fg2);">Intel Core Ultra 7 · 20 thread · llama.cpp</div>
+      </div>
+
+      <!-- Jetson -->
+      <div style="background:#0a1f14; border:1.5px solid var(--green); border-radius:14px; padding:20px;">
+        <div style="font-size:11px; font-weight:700; color:var(--green); letter-spacing:.6px; text-transform:uppercase; margin-bottom:12px;">🟢 Jetson Orin · GPU</div>
+        <div style="display:flex; gap:16px; align-items:flex-end;">
+          <div>
+            <div style="font-size:38px; font-weight:800; color:var(--green); line-height:1;">~14</div>
+            <div style="font-size:12px; color:var(--fg2); margin-top:2px;">tok/s</div>
+          </div>
+          <div>
+            <div style="font-size:38px; font-weight:800; color:#f5c542; line-height:1;">~22</div>
+            <div style="font-size:12px; color:var(--fg2); margin-top:2px;">Watt</div>
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:12px; color:var(--fg2);">NVIDIA Ampere GPU · Jetson Orin · llama.cpp</div>
+      </div>
+    </div>
+
+    <div class="bullets" style="margin-top:22px;">
       <div class="bullet show">
         <div class="dot"></div>
-        <div>Dal <strong>device badge</strong> in basso: switch backend da Tuxedo a Jetson in un click</div>
+        <div>Il laptop CPU è <strong>più veloce</strong> (+35%) e consuma <strong>meno watt</strong> — risultato sorprendente</div>
       </div>
       <div class="bullet show">
         <div class="dot cyan"></div>
-        <div>Stessa analisi, stessi prompt → confronto diretto sui <strong>power badge</strong></div>
-      </div>
-    </div>
-    <div class="metrics" style="margin-top:28px;">
-      <div class="metric">
-        <div class="kicker" style="font-size:10px;">Tuxedo CPU</div>
-        <div class="metric-val" style="color:#8b89ff;">~19</div>
-        <div class="metric-label">tok/s</div>
-      </div>
-      <div class="metric">
-        <div class="kicker" style="font-size:10px;">Tuxedo CPU</div>
-        <div class="metric-val yellow">~14</div>
-        <div class="metric-label">Watt</div>
-      </div>
-      <div class="metric" style="border-color: var(--border); background: #060f17; opacity:.5; font-style:italic;">
-        <div class="kicker" style="font-size:10px; color: var(--green);">Jetson GPU</div>
-        <div class="metric-val green">?</div>
-        <div class="metric-label">live durante la demo</div>
-      </div>
-    </div>
-    <div class="bullets" style="margin-top:24px;">
-      <div class="bullet show">
-        <div class="dot yellow"></div>
-        <div>La metrica più interessante: <strong>velocità di risposta</strong> — quanto velocemente il modello genera testo</div>
+        <div>Il Jetson eccelle su modelli <strong>più piccoli</strong> e in scenari edge a basso consumo fisso</div>
       </div>
     </div>
   </div>
