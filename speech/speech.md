@@ -19,7 +19,7 @@ Dimostrare che l'AI generativa locale — senza cloud, senza API key, senza mand
   - **Tuxedo PC** — Intel Core Ultra 7 155H, 64 GB RAM, GPU integrata inutilizzata. Solo CPU.
   - **Jetson Orin** — ARM Cortex-A78AE + GPU Ampere embedded. Edge AI.
 - Stesso modello, stesso prompt, architetture completamente diverse.
-- Alla fine sapremo quale consuma meno per token generato.
+- Anticipazione: il risultato è sorprendente — la GPU embedded batte il laptop sia in velocità che in consumo.
 
 ---
 
@@ -34,9 +34,9 @@ Dimostrare che l'AI generativa locale — senza cloud, senza API key, senza mand
 
 ### 4. Demo — Pulizia e analisi AI (5 min)
 - Cliccare **✨ Sistema note**: l'AI corregge la trascrizione grezza, estrae una sintesi e assegna un sentiment con emoji
-- Cliccare **🧠 Analizza**: partono 4 chiamate in parallelo
-- Mostrare il **log in tempo reale**: `[00:12] 1/4 eventi e task... ↳ 312 tok · 18.4 tok/s`
-- Mostrare il **power badge** nel risultato: `⚡ 14.2 W · 18.4 tok/s · 42s`
+- Cliccare **🧠 Analizza**: partono 4 chiamate in sequenza
+- Mostrare il **log in tempo reale**: `[00:12] 1/4 eventi e task... ↳ prompt 420 tok · gen 312 tok · 10.2 tok/s`
+- Mostrare il **power badge** nel risultato: `⚡ 40 W · 10 tok/s · 68s`
 - Risultati: eventi & task con priorità, riassunto strutturato, suggerimenti pratici, connessioni tematiche tra note
 - Mostrare la **modifica inline** di un evento estratto dall'AI
 - Mostrare la **chat recap**: *"Rendi il riassunto più formale"* → l'AI risponde e applica una patch JSON all'analisi in tempo reale
@@ -46,32 +46,32 @@ Dimostrare che l'AI generativa locale — senza cloud, senza API key, senza mand
 ### 5. Demo — Chat con le note (3 min)
 - Tre modalità:
   - **💬 Libera**: dialogo diretto col modello, nessun contesto iniettato
-  - **📋 Note**: keyword search sulle trascrizioni → top-5 note rilevanti iniettate come contesto. Domanda: *"Di cosa ho parlato lunedì?"*
+  - **📋 Note**: il modello riceve un indice di tutte le note (data + sintesi) e il contenuto completo di quelle più rilevanti. Domanda: *"Di cosa ho parlato lunedì?"* — il modello risponde senza dover cercare per keyword
   - **✏️ Recap**: modifica interattiva dell'analisi corrente via chat
+- Mostrare il **selettore note manuale**: si possono scegliere esplicitamente le note da includere nel contesto, invece di affidarsi alla ricerca automatica
+- Mostrare la **barra del contesto** sotto l'input: indica quanti token del modello sono già occupati dal prompt (su 24.576 totali)
 - Mostrare la risposta che appare **lettera per lettera** durante la generazione — nessun "caricamento", si vede il modello pensare
 
 ---
 
 ### 6. Demo — Benchmark live CPU vs Jetson (4 min)
-- Dal badge in basso a sinistra: cliccare per aprire il pannello dispositivi
+- Dal **chip dispositivo nell'header** (in alto a sinistra): cliccare per aprire il pannello
 - Switchare backend da Tuxedo a Jetson con un click — l'app si riconnette in tempo reale
 - Fare la stessa analisi su entrambe le macchine
-- Confrontare i risultati dal power badge:
-  - **Tuxedo**: tok/s, watt (misurati via RAPL Intel)
-  - **Jetson**: tok/s, watt (misurati via INA sensor su board)
-- Discussione: il Jetson vince in efficienza energetica (meno W/token), il Tuxedo vince in velocità assoluta. Dipende dal contesto d'uso.
+- Confrontare i risultati:
+  - **Tuxedo CPU**: ~10 tok/s · ~40 W (misurati via RAPL Intel)
+  - **Jetson GPU**: ~14 tok/s · ~20 W (misurati via INA sensor su board)
+- Conclusione: il Jetson vince sia in velocità (+40%) che in efficienza (metà dei watt) — la GPU embedded batte la CPU su inferenza LLM
+- Il Tuxedo resta utile per flessibilità, prototipazione rapida e nessun setup GPU
 
 ---
 
-### 7. Under the hood — Lo stack (3 min)
-- **Frontend**: Vue 3 + Vite — SSE polling, PWA-ready, responsive mobile
-- **Backend**: Node.js + Express — job store in memoria, HTTPS locale con certificati mkcert
-- **LLM**: llama.cpp con Gemma 4 26B-A4B (MoE, Q4_K_M, 16 GB su disco)
-  - Flash Attention ON, KV cache quantizzata q8_0
-  - Pinnato ai soli P-core (0-11) via `taskset` — gli E-core rallentano l'inferenza per il problema degli "stragglers"
-  - CPU governor impostato a `performance` all'avvio — senza questo il processore gira al 50% della frequenza massima
-- **Trascrizione**: faster-whisper (CTranslate2) su server HTTP persistente, `large-v3-turbo`, `beam_size=1`
-- **Energia**: RAPL su Intel (`/sys/class/powercap/`), INA hwmon su Jetson — nessun tool esterno
+### 7. Under the hood — Come funziona (2 min)
+- Il testo viene spezzato in **token** — pezzetti di parola. Il modello genera un token alla volta.
+- **Gemma 4 26B MoE**: 26 miliardi di parametri totali, ma solo ~4B attivi per token (Mixture of Experts). Velocità da modello piccolo, qualità da modello grande.
+- **Quantizzazione Q4**: i pesi passano da 60 GB (fp16) a 16 GB su disco — perdita di qualità minima, ma entra in RAM.
+- Su CPU: pinnato ai soli P-core (0-11) via `taskset`, CPU governor a `performance`. Senza questi accorgimenti le performance calano del 25-30%.
+- **Trascrizione**: faster-whisper (CTranslate2) su server HTTP persistente, `large-v3-turbo`.
 
 ---
 
@@ -85,8 +85,8 @@ Dimostrare che l'AI generativa locale — senza cloud, senza API key, senza mand
 
 ### 9. Conclusioni (2 min)
 - L'AI locale non è più un esperimento: è misurabile, confrontabile, deployabile
-- La scelta del runtime e della topologia CPU ha impatto reale sulle performance — non è solo una questione di VRAM
-- Il dato più interessante non è "quanti tok/s" ma "quanti tok per joule"
+- La scelta dell'hardware conta: GPU embedded vs CPU cambia tutto in termini di velocità ed efficienza
+- Non serve il cloud per avere un assistente AI utile — serve il modello giusto, il runtime giusto, e qualche ora di configurazione
 - **Prossimi passi**: trascrizione streaming in tempo reale, pannello benchmark comparativo affiancato, supporto multi-utente
 
 ---
