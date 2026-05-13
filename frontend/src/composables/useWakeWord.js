@@ -1,8 +1,8 @@
 import { ref, watch, onUnmounted } from "vue";
 import { apiFetch } from "./useApi.js";
 
-const WAKE_COMMAND = "kubi registra";
-const CHUNK_MS = 2500;
+const WAKE_COMMAND = "regist";
+const CHUNK_MS = 1000;
 const STORAGE_KEY = "wakeWordEnabled";
 
 function getMimeType() {
@@ -28,6 +28,32 @@ function captureChunk(stream, durationMs) {
   });
 }
 
+function beep() {
+  try {
+    const sampleRate = 8000;
+    const duration = 0.25;
+    const freq = 880;
+    const numSamples = Math.floor(sampleRate * duration);
+    const buf = new ArrayBuffer(44 + numSamples);
+    const v = new DataView(buf);
+    const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+    str(0, "RIFF"); v.setUint32(4, 36 + numSamples, true); str(8, "WAVE");
+    str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, sampleRate, true);
+    v.setUint32(28, sampleRate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    str(36, "data"); v.setUint32(40, numSamples, true);
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate;
+      const env = 1 - t / duration;
+      v.setUint8(44 + i, 128 + Math.round(100 * env * Math.sin(2 * Math.PI * freq * t)));
+    }
+    const url = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+    const audio = new Audio(url);
+    audio.play().catch(() => {});
+    audio.onended = () => URL.revokeObjectURL(url);
+  } catch {}
+}
+
 async function transcribeChunk(blob) {
   try {
     const ext = getExt(blob.type);
@@ -42,22 +68,6 @@ async function transcribeChunk(blob) {
   }
 }
 
-function speak(text) {
-  return new Promise((resolve) => {
-    if (!window.speechSynthesis) { resolve(); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "it-IT";
-    utterance.onend = resolve;
-    utterance.onerror = resolve;
-    window.speechSynthesis.speak(utterance);
-    setTimeout(resolve, 4000);
-  });
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 export function useWakeWord({ onTriggered } = {}) {
   const enabled = ref(localStorage.getItem(STORAGE_KEY) === "true");
@@ -88,11 +98,13 @@ export function useWakeWord({ onTriggered } = {}) {
       const transcript = await transcribeChunk(blob);
       if (!loopActive) break;
 
+      console.log("[wake] transcript:", transcript);
+
       if (transcript?.toLowerCase().includes(WAKE_COMMAND)) {
+        console.log("[wake] TRIGGERED");
         status.value = "triggered";
         stopStream();
-        await speak("Ok dimmi pure");
-        if (!loopActive) break;
+        beep();
         onTriggered?.();
         // Loop stopped — onTriggered is expected to call stopLoop()
         // If for some reason it didn't, bail out anyway

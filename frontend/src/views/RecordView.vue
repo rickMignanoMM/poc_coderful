@@ -13,20 +13,7 @@
       </button>
       <p class="hint">{{ recording ? "Tocca per fermare" : "Tocca per registrare" }}</p>
 
-      <div class="wake-row">
-        <label class="wake-toggle">
-          <input type="checkbox" v-model="wakeWord.enabled.value" />
-          <span class="toggle-track"><span class="toggle-thumb" /></span>
-          <span class="toggle-label">Wake word</span>
-        </label>
-        <transition name="fade">
-          <span v-if="wakeWord.listening.value" class="wake-indicator">
-            <span class="pulse-dot" />
-            Ascolto "KUBI REGISTRA"
-          </span>
-        </transition>
-      </div>
-    </div>
+</div>
 
     <div v-if="blob" class="preview-card">
       <audio :src="audioUrl" controls />
@@ -46,7 +33,6 @@
 import { computed, onUnmounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
 import { useApi } from "../composables/useApi.js";
-import { useWakeWord } from "../composables/useWakeWord.js";
 
 const { apiFetch } = useApi();
 
@@ -64,8 +50,6 @@ let chunks = [];
 let timer = null;
 let mediaStream = null;
 let messageTimeout = null;
-
-const wakeWord = useWakeWord({ onTriggered: () => start() });
 
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const audioExtension = computed(() => {
@@ -89,10 +73,6 @@ function getMimeType() {
 }
 
 async function start() {
-  // Stop wake word listener before opening mic for recording
-  wakeWord.stopLoop();
-  await new Promise((r) => setTimeout(r, 100));
-
   chunks = [];
   resetPreview();
   seconds.value = 0;
@@ -107,10 +87,6 @@ async function start() {
     revokeAudioUrl();
     audioUrl.value = URL.createObjectURL(blob.value);
     stopMediaStream();
-    // Restart wake word listener after recording ends
-    if (wakeWord.enabled.value) {
-      setTimeout(() => wakeWord.startLoop(), 500);
-    }
   };
   mediaRecorder.start();
   recording.value = true;
