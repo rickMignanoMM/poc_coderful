@@ -7,7 +7,9 @@ frontend/dist/
 
 # Dati utente (privati, non versionati)
 backend/data/notes.json
+backend/data/notes.backup.json
 backend/data/archivio-analisi.json
+backend/data/archivio-analisi.backup.json
 backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 

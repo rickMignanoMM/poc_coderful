@@ -51,7 +51,7 @@ fi
 # ngrok
 if ! curl -s http://127.0.0.1:4040/api/tunnels > /dev/null 2>&1; then
   echo "Avvio ngrok..."
-  ~/.local/bin/ngrok http --url=obtain-crave-glider.ngrok-free.dev 3000 > /tmp/ngrok.log 2>&1 &
+  ~/.local/bin/ngrok http --url=jetson-note-ai.ngrok.app 3000 > /tmp/ngrok.log 2>&1 &
   sleep 3
   echo "  → ngrok avviato"
 else

@@ -55,10 +55,19 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, "[]");
 if (!fs.existsSync(ARCHIVE_FILE)) fs.writeFileSync(ARCHIVE_FILE, "[]");
 
+const ARCHIVE_BACKUP_FILE = path.join(DATA_DIR, "archivio-analisi.backup.json");
+
 function readArchive() {
-  return JSON.parse(fs.readFileSync(ARCHIVE_FILE, "utf-8"));
+  for (const file of [ARCHIVE_FILE, ARCHIVE_BACKUP_FILE]) {
+    try {
+      const raw = fs.readFileSync(file, "utf-8");
+      if (raw.trim()) return JSON.parse(raw);
+    } catch {}
+  }
+  return [];
 }
 function saveArchive(entries) {
+  try { fs.copyFileSync(ARCHIVE_FILE, ARCHIVE_BACKUP_FILE); } catch {}
   fs.writeFileSync(ARCHIVE_FILE, JSON.stringify(entries, null, 2));
 }
 function generateTitle(result) {
@@ -87,15 +96,24 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 app.use("/audio", express.static(UPLOADS_DIR));
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
+const NOTES_BACKUP_FILE = path.join(DATA_DIR, "notes.backup.json");
+
 function readNotes() {
-  return JSON.parse(fs.readFileSync(NOTES_FILE, "utf-8"));
+  for (const file of [NOTES_FILE, NOTES_BACKUP_FILE]) {
+    try {
+      const raw = fs.readFileSync(file, "utf-8");
+      if (raw.trim()) return JSON.parse(raw);
+    } catch {}
+  }
+  return [];
 }
 
 function saveNotes(notes) {
+  try { fs.copyFileSync(NOTES_FILE, NOTES_BACKUP_FILE); } catch {}
   fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
 }
 
