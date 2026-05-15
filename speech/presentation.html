@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Locale su Hardware Consumer</title>
+<title>AI ON THE EDGE: Quando l'intelligenza artificiale gira in locale</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Press+Start+2P&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Press+Start+2P&display=swap');
 
   :root {
     --bg:      #0d1b2a;
@@ -26,7 +26,7 @@
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Figtree', sans-serif;
     overflow: hidden;
     height: 100vh;
     width: 100vw;
@@ -56,22 +56,22 @@
   .slide-split { flex-direction: row; gap: 48px; align-items: stretch; text-align: left; }
 
   .kicker {
-    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    font-size: 14px; font-weight: 700; letter-spacing: 3px;
     text-transform: uppercase; color: var(--green); margin-bottom: 16px;
   }
-  h1 { font-size: 52px; font-weight: 800; line-height: 1.1; color: var(--fg); margin-bottom: 20px; }
+  h1 { font-size: 65px; font-weight: 800; line-height: 1.1; color: var(--fg); margin-bottom: 20px; }
   h1 span.accent { color: var(--green2); }
   h1 span.magenta { color: var(--magenta); }
-  h2 { font-size: 34px; font-weight: 700; color: var(--fg); margin-bottom: 32px; line-height: 1.2; }
+  h2 { font-size: 42px; font-weight: 700; color: var(--fg); margin-bottom: 32px; line-height: 1.2; }
   h2 span.accent { color: var(--green2); }
   h2 span.magenta { color: var(--magenta); }
   h2 span.cyan { color: var(--cyan); }
-  .subtitle { font-size: 20px; font-weight: 300; color: var(--fg2); line-height: 1.5; max-width: 640px; }
+  .subtitle { font-size: 24px; font-weight: 300; color: var(--fg2); line-height: 1.5; max-width: 720px; }
 
   .bullets { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 860px; }
   .bullet {
     display: flex; align-items: flex-start; gap: 18px;
-    font-size: 20px; line-height: 1.5; color: var(--fg);
+    font-size: 24px; line-height: 1.5; color: var(--fg);
     opacity: 0; transform: translateY(16px);
     transition: opacity .35s ease, transform .35s ease;
   }
@@ -84,7 +84,7 @@
   .bullet .dot.cyan { background: var(--cyan); }
   .bullet .dot.yellow { background: var(--yellow); }
   .bullet strong { color: var(--green2); font-weight: 600; }
-  .bullet em { color: var(--fg2); font-style: normal; font-size: 16px; display: block; margin-top: 4px; }
+  .bullet em { color: var(--fg2); font-style: normal; font-size: 20px; display: block; margin-top: 4px; }
 
   pre, code { font-family: 'JetBrains Mono', monospace; }
 
@@ -94,14 +94,14 @@
     border-radius: 12px; padding: 28px 24px;
   }
   .card-title {
-    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    font-size: 14px; font-weight: 700; letter-spacing: 2px;
     text-transform: uppercase; color: var(--green); margin-bottom: 16px;
   }
   .card-title.magenta { color: var(--magenta); }
   .card-title.cyan { color: var(--cyan); }
   .card ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
   .card li {
-    font-size: 15px; color: var(--fg2);
+    font-size: 18px; color: var(--fg2);
     display: flex; gap: 10px; align-items: flex-start; line-height: 1.5;
   }
   .card li::before { content: '›'; color: var(--green); font-weight: 700; flex-shrink: 0; }
@@ -117,18 +117,18 @@
   .hw-card.tuxedo { border-top: 3px solid #5856d6; }
   .hw-card.jetson  { border-top: 3px solid var(--green); }
   .hw-tag {
-    display: inline-block; font-size: 10px; font-weight: 700;
+    display: inline-block; font-size: 13px; font-weight: 700;
     letter-spacing: 2px; text-transform: uppercase;
     padding: 4px 12px; border-radius: 20px; align-self: flex-start;
   }
   .hw-tag.tuxedo { background: rgba(88,86,214,.2); color: #8b89ff; }
   .hw-tag.jetson  { background: rgba(82,183,136,.2); color: var(--green2); }
-  .hw-name { font-size: 22px; font-weight: 700; color: var(--fg); }
-  .hw-spec { font-size: 13px; color: var(--fg2); display: flex; flex-direction: column; gap: 6px; }
+  .hw-name { font-size: 27px; font-weight: 700; color: var(--fg); }
+  .hw-spec { font-size: 16px; color: var(--fg2); display: flex; flex-direction: column; gap: 6px; }
   .hw-spec span { display: flex; justify-content: space-between; gap: 12px; }
   .hw-spec span strong { color: var(--fg); text-align: right; }
   .hw-vs {
-    font-size: 28px; font-weight: 800; color: var(--fg2);
+    font-size: 35px; font-weight: 800; color: var(--fg2);
     display: flex; align-items: center; padding: 0 8px;
     flex-shrink: 0; align-self: center;
   }
@@ -138,21 +138,21 @@
     flex: 1; background: var(--bg2); border: 1px solid var(--border);
     border-radius: 12px; padding: 24px 20px; text-align: center;
   }
-  .metric-val { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  .metric-val { font-size: 45px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
   .metric-val.green   { color: var(--green2); }
   .metric-val.magenta { color: var(--magenta); }
   .metric-val.cyan    { color: var(--cyan); }
   .metric-val.yellow  { color: var(--yellow); }
-  .metric-label { font-size: 11px; color: var(--fg2); text-transform: uppercase; letter-spacing: 1.5px; }
+  .metric-label { font-size: 14px; color: var(--fg2); text-transform: uppercase; letter-spacing: 1.5px; }
 
   .stack { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 820px; }
   .stack-row { display: flex; gap: 10px; }
   .stack-box {
     flex: 1; background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px; font-size: 13px;
+    border-radius: 8px; padding: 14px 16px; font-size: 16px;
   }
   .stack-box .sb-label {
-    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
     text-transform: uppercase; margin-bottom: 6px;
   }
   .stack-box .sb-label.green   { color: var(--green); }
@@ -161,26 +161,26 @@
   .stack-box .sb-label.yellow  { color: var(--yellow); }
   .stack-box .sb-label.purple  { color: #8b89ff; }
   .stack-box .sb-val { color: var(--fg); font-weight: 500; }
-  .stack-box .sb-sub { color: var(--fg2); font-size: 11px; margin-top: 3px; }
-  .stack-arrow { text-align: center; color: var(--fg2); font-size: 18px; line-height: 1; }
+  .stack-box .sb-sub { color: var(--fg2); font-size: 14px; margin-top: 3px; }
+  .stack-arrow { text-align: center; color: var(--fg2); font-size: 22px; line-height: 1; }
 
   .moe { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
   .moe-row { display: flex; gap: 10px; align-items: center; }
   .moe-box {
     background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 16px; font-size: 13px;
+    border-radius: 8px; padding: 12px 16px; font-size: 16px;
     text-align: center; min-width: 100px;
   }
   .moe-box.active { border-color: var(--green); color: var(--green2); }
   .moe-box.dim { opacity: 0.35; }
   .moe-box.router { border-color: var(--yellow); color: var(--yellow); min-width: 120px; }
-  .moe-arrow { color: var(--fg2); font-size: 16px; }
+  .moe-arrow { color: var(--fg2); font-size: 20px; }
 
   .log-sim {
     background: #060f17; border: 1px solid var(--border);
     border-left: 3px solid var(--green); border-radius: 8px;
     padding: 16px 20px; font-family: 'JetBrains Mono', monospace;
-    font-size: 13px; width: 100%;
+    font-size: 16px; width: 100%;
   }
   .log-line { color: #3a7d5a; margin-bottom: 4px; }
   .log-line .ts { color: #2d6a4f; margin-right: 8px; }
@@ -192,7 +192,7 @@
   .power-badge-demo {
     display: inline-flex; align-items: center; gap: 8px;
     background: rgba(255,214,10,.1); border: 1.5px solid var(--yellow);
-    border-radius: 8px; padding: 8px 16px; font-size: 15px;
+    border-radius: 8px; padding: 8px 16px; font-size: 19px;
     font-weight: 600; color: var(--yellow); margin-top: 12px;
   }
 
@@ -202,24 +202,26 @@
     background: var(--bg2); border: 1px solid var(--border);
     border-radius: 12px; padding: 20px 24px;
   }
+  .concl-item.bullet { opacity: 0; transform: translateY(16px); transition: opacity .35s ease, transform .35s ease; }
+  .concl-item.bullet.show { opacity: 1; transform: translateY(0); }
   .concl-num {
-    font-size: 28px; font-weight: 800; color: var(--green);
-    line-height: 1; flex-shrink: 0; width: 36px; text-align: center;
+    font-size: 35px; font-weight: 800; color: var(--green);
+    line-height: 1; flex-shrink: 0; width: 44px; text-align: center;
   }
-  .concl-text { font-size: 17px; line-height: 1.5; color: var(--fg); }
-  .concl-text small { display: block; color: var(--fg2); font-size: 14px; margin-top: 4px; }
+  .concl-text { font-size: 21px; line-height: 1.5; color: var(--fg); }
+  .concl-text small { display: block; color: var(--fg2); font-size: 17px; margin-top: 4px; }
 
   #progress {
     position: fixed; bottom: 0; left: 0; height: 3px;
     background: var(--green); transition: width .35s ease; z-index: 100;
   }
   #counter {
-    position: fixed; bottom: 20px; right: 28px; font-size: 12px;
+    position: fixed; bottom: 20px; right: 28px; font-size: 15px;
     color: var(--fg2); font-family: 'JetBrains Mono', monospace; z-index: 100;
   }
   #nav-hint {
     position: fixed; bottom: 20px; left: 28px;
-    font-size: 11px; color: #2d4a3e; z-index: 100;
+    font-size: 14px; color: #2d4a3e; z-index: 100;
   }
 
   .divider { width: 48px; height: 3px; background: var(--green); border-radius: 2px; margin: 20px 0; }
@@ -228,7 +230,7 @@
 
   .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
   .tag {
-    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 20px; font-size: 15px; font-weight: 600;
     background: rgba(82,183,136,.15); color: var(--green2);
     border: 1px solid rgba(82,183,136,.3);
   }
@@ -238,9 +240,39 @@
   .tag.purple  { background: rgba(139,137,255,.15); color: #8b89ff; border-color: rgba(139,137,255,.3); }
 
   #section-label {
-    position: fixed; top: 20px; left: 28px; font-size: 11px; font-weight: 700;
+    position: fixed; top: 20px; left: 28px; font-size: 14px; font-weight: 700;
     letter-spacing: 2px; text-transform: uppercase; color: #2d4a3e;
     z-index: 100; transition: opacity .3s;
+  }
+
+  .vocab-intro {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 1;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .vocab-intro.dismissed {
+    opacity: 0;
+    transform: scale(1.06);
+    pointer-events: none;
+  }
+
+  .vocab-body { display: contents; }
+  .vocab-body > * {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .vocab-body.revealed > * {
+    opacity: 1;
+    transform: translateY(0);
   }
 </style>
 </head>
@@ -250,19 +282,29 @@
 <div id="counter"></div>
 <div id="nav-hint">← → SPAZIO per navigare · F per fullscreen</div>
 <div id="section-label"></div>
+<div id="logo-bar" style="position:fixed; top:20px; right:28px; display:flex; align-items:center; gap:16px; z-index:100;">
+  <img src="Logotype white .png" alt="Magicmotorsport" style="height:44px; object-fit:contain;">
+  <img src="coderful_white_logo.png" alt="Coderful" style="height:28px; object-fit:contain;">
+</div>
 
 <div id="deck">
 
   <!-- ── SLIDE 1: COVER ── -->
   <div class="slide slide-cover active" data-section="">
     <div class="kicker">Magicmotorsport · AI Infrastructure</div>
-    <h1>AI Locale su<br><span class="accent">Hardware Consumer</span></h1>
+    <h1>AI on the Edge:<br><span class="accent">Quando l'intelligenza artificiale gira in locale</span></h1>
     <div class="subtitle">Un assistente AI che trascrive le tue riunioni, le analizza e risponde alle tue domande — senza mandare un singolo byte fuori dalla tua rete.</div>
     <div class="divider" style="margin-top:40px;"></div>
     <div class="tag-row" style="justify-content:center;">
       <span class="tag">🔒 Privacy totale</span>
       <span class="tag cyan">⚡ Live Demo</span>
       <span class="tag yellow">💻 Hardware consumer</span>
+    </div>
+    <!-- Cover bottom bar -->
+    <div style="position:absolute; bottom:32px; left:0; right:0; display:flex; align-items:center; justify-content:space-between; padding:0 48px;">
+      <img src="Logotype white .png" alt="Magicmotorsport" style="height:72px; object-fit:contain;">
+      <div style="font-size:13px; font-weight:600; color:var(--fg2); letter-spacing:0.5px; text-align:center;">Road to Coderful x Magicmotorsport<br><span style="color:var(--green); font-weight:700;">15 Maggio 2026</span></div>
+      <img src="coderful_white_logo.png" alt="Coderful" style="height:40px; object-fit:contain;">
     </div>
   </div>
 
@@ -292,6 +334,15 @@
 
   <!-- ── SLIDE 3: TOKEN ── -->
   <div class="slide slide-content" data-section="Il vocabolario · 1 di 5">
+
+    <!-- Intro overlay: "Vocabolario" appare e svanisce prima del contenuto -->
+    <div class="vocab-intro">
+      <div style="font-size:13px; font-weight:700; letter-spacing:4px; text-transform:uppercase; color:var(--green); opacity:0.7;">Sezione</div>
+      <div style="font-size:80px; font-weight:800; color:var(--fg); line-height:1;">Vocabolario</div>
+      <div style="font-size:18px; color:var(--fg2); font-weight:300;">5 parole per capire tutto il resto</div>
+    </div>
+
+    <div class="vocab-body">
     <div class="kicker">Il vocabolario · 1 di 5</div>
     <h2 style="color:var(--cyan);">Token</h2>
     <div style="font-size:20px; color:var(--fg2); margin-bottom:28px; max-width:700px;">Una parola, o un pezzo di parola. Come le <strong style="color:var(--fg);">tessere dello Scrabble</strong> — il modello ne legge e scrive una alla volta.</div>
@@ -316,6 +367,7 @@
       </div>
     </div>
     <div style="margin-top:20px; font-size:16px; color:var(--fg2);"><strong style="color:var(--cyan);">tok/s</strong> = token al secondo = quanto velocemente scrive. Lo vedi live durante la demo.</div>
+    </div><!-- end .vocab-body -->
   </div>
 
   <!-- ── SLIDE 4: INFERENZA ── -->
@@ -454,39 +506,31 @@
       <div class="hw-name">Tuxedo PC</div>
       <div style="font-size:15px; color:var(--fg2); line-height:1.7; margin-top:10px;">
         Un normale laptop — come quello sulla tua scrivania.<br>
-        Nessuna GPU speciale: gira tutto sulla <strong style="color:var(--fg);">CPU</strong>, come qualsiasi PC da ufficio.
+        Nessuna GPU dedicata: gira tutto sulla <strong style="color:var(--fg);">CPU + grafica Intel</strong>.
       </div>
-      <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>🧠</span><span>Modello grande: <strong>26 miliardi di parametri</strong></span>
-        </div>
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>⚡</span><span>Consuma circa <strong>14 W</strong> durante una risposta</span>
-        </div>
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>🔒</span><span>Completamente <strong>offline</strong> — zero cloud</span>
-        </div>
+      <div class="hw-spec" style="margin-top:20px;">
+        <span><span>RAM</span><strong>64 GB</strong></span>
+        <span><span>GPU</span><strong>Intel Integrated Graphics</strong></span>
+        <span><span>Modello</span><strong>26B parametri</strong></span>
+        <span><span>Consumo</span><strong>~14 W</strong></span>
+        <span><span>Connessione</span><strong>Offline — zero cloud</strong></span>
       </div>
     </div>
     <div class="hw-vs">VS</div>
     <div class="hw-card jetson">
       <span class="hw-tag jetson">Scheda AI dedicata</span>
       <div style="font-size:52px; margin: 12px 0 4px;">🤖</div>
-      <div class="hw-name">NVIDIA Jetson Orin</div>
+      <div class="hw-name">NVIDIA Jetson Orin NX</div>
       <div style="font-size:15px; color:var(--fg2); line-height:1.7; margin-top:10px;">
         Una scheda grande come un libro tascabile — progettata apposta per l'AI.<br>
-        Ha una <strong style="color:var(--fg);">GPU integrata</strong>, come le console di gioco ma ottimizzata per i modelli.
+        Ha una <strong style="color:var(--fg);">GPU NVIDIA integrata</strong>, ottimizzata per i modelli.
       </div>
-      <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>🧠</span><span>Modello più piccolo: <strong>4 miliardi di parametri</strong></span>
-        </div>
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>⚡</span><span>Consuma circa <strong>15 W</strong> — come una lampadina LED</span>
-        </div>
-        <div style="display:flex; gap:12px; align-items:center; font-size:15px; color:var(--fg);">
-          <span>📏</span><span>Delle dimensioni di un <strong>libro tascabile</strong></span>
-        </div>
+      <div class="hw-spec" style="margin-top:20px;">
+        <span><span>RAM</span><strong>16 GB LPDDR5</strong></span>
+        <span><span>GPU</span><strong>1024-core NVIDIA Ampere</strong></span>
+        <span><span>Modello</span><strong>4B parametri</strong></span>
+        <span><span>Consumo</span><strong>~15 W</strong></span>
+        <span><span>Form factor</span><strong>Libro tascabile</strong></span>
       </div>
     </div>
   </div>
@@ -733,7 +777,7 @@
           <li>10–30× più veloce sull'inferenza</li>
           <li>Il modello deve <strong>entrare nella VRAM</strong> — che è cara e limitata</li>
           <li>Se non ci entra → si scarica su CPU → si perde quasi tutto il vantaggio</li>
-          <li>NVIDIA CUDA è lo standard · Apple usa Metal (MLX)</li>
+          <li>NVIDIA CUDA è lo standard per l'accelerazione AI su GPU</li>
         </ul>
       </div>
     </div>
@@ -761,6 +805,40 @@
       <div class="bullet show">
         <div class="dot yellow"></div>
         <div><strong>La regola pratica:</strong> se il modello entra nella VRAM → GPU. Altrimenti, tanta RAM su CPU permette modelli più grandi e spesso più capaci.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 16: RAM VS VRAM ── -->
+  <div class="slide slide-content" data-section="RAM vs VRAM">
+    <div class="kicker">Memoria — due tipi, due mondi</div>
+    <h2>RAM vs <span class="accent">VRAM</span></h2>
+    <div class="cards" style="margin-bottom:28px;">
+      <div class="card" style="border-top: 3px solid #8b89ff;">
+        <div class="card-title" style="color:#8b89ff;">RAM — memoria di sistema</div>
+        <ul>
+          <li>Usata dalla <strong>CPU</strong> per tutto quello che fa girare il computer</li>
+          <li>Abbondante ed economica — oggi si arriva facilmente a <strong>64–128 GB</strong></li>
+          <li>Velocità moderata: ~50–100 GB/s di bandwidth</li>
+          <li>Permette di caricare modelli molto grandi anche senza GPU dedicata</li>
+          <li>Il Tuxedo usa questa: <strong>64 GB DDR5</strong></li>
+        </ul>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <div class="card-title">VRAM — memoria della GPU</div>
+        <ul>
+          <li>Usata dalla <strong>GPU</strong> — fisicamente saldata sulla scheda grafica</li>
+          <li>Limitata e costosa — le GPU consumer arrivano a <strong>8–24 GB</strong></li>
+          <li>Velocità altissima: fino a <strong>900 GB/s</strong> (es. Jetson: ~68 GB/s)</li>
+          <li>Se il modello non ci entra tutto, si torna su RAM e si perde il vantaggio</li>
+          <li>Il Jetson Orin NX usa questa: <strong>16 GB LPDDR5 unificata</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div class="bullets" style="max-width:860px;">
+      <div class="bullet show">
+        <div class="dot yellow"></div>
+        <div><strong>La differenza chiave:</strong> la VRAM è più veloce ma molto più scarsa. Con 64 GB di RAM puoi far girare modelli enormi sulla CPU; con 16 GB di VRAM sulla GPU vai molto più veloce, ma solo se il modello ci entra.</div>
       </div>
     </div>
   </div>
@@ -834,8 +912,8 @@
 
   <!-- ── SLIDE 11: MoE + BANDWIDTH ── -->
   <div class="slide slide-content" data-section="Gemma 4 MoE">
-    <div class="kicker">Perché il Mac è più veloce — e perché non è il punto</div>
-    <h2>Il vero collo di bottiglia: <span class="accent">spostare i dati</span></h2>
+    <div class="kicker">Bonus per chi sperimenta con il Mac</div>
+    <h2>Memoria unificata: <span class="accent">CPU e GPU che parlano la stessa lingua</span></h2>
     <div class="bullets">
       <div class="bullet show">
         <div class="dot yellow"></div>
@@ -877,41 +955,44 @@
     <div class="kicker">Takeaway</div>
     <h2>Tre cose da portare a casa</h2>
     <div class="concl-items">
-      <div class="concl-item">
+      <div class="concl-item bullet" data-step="1">
         <div class="concl-num">1</div>
         <div class="concl-text">L'AI locale è già oggi praticabile per use case reali
           <small>Non è un esperimento di laboratorio — gira su un laptop da scaffale, misurabile in watt</small>
         </div>
       </div>
-      <div class="concl-item">
+      <div class="concl-item bullet" data-step="2">
         <div class="concl-num" style="color:var(--magenta);">2</div>
         <div class="concl-text">Le ottimizzazioni contano quanto l'hardware
           <small>Con le giuste impostazioni si guadagna il 25–30% di prestazioni senza spendere un euro</small>
         </div>
       </div>
-      <div class="concl-item">
+      <div class="concl-item bullet" data-step="3">
         <div class="concl-num" style="color:var(--cyan);">3</div>
         <div class="concl-text">Il modello giusto dipende dal contesto d'uso
           <small>Cloud, laptop o edge: la risposta cambia a seconda del caso d'uso</small>
         </div>
       </div>
     </div>
-    <div class="tag-row" style="margin-top:24px;">
-      <span class="tag">Trascrizione streaming</span>
-      <span class="tag cyan">Benchmark panel affiancato</span>
-      <span class="tag magenta">Multi-utente</span>
+    <div class="bullet" data-step="4" style="margin-top:24px; max-width:780px;">
+      <div class="dot cyan"></div>
+      <div>Scegliendo il modello giusto, la stessa tecnologia può girare su <strong>dispositivi embedded, wearable e sensori edge</strong> — non solo su un laptop.
+        <div class="tag-row" style="margin-top:12px;">
+          <span class="tag">Raspberry Pi</span>
+          <span class="tag cyan">Smartwatch</span>
+          <span class="tag magenta">Sensori industriali</span>
+          <span class="tag yellow">Droni</span>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- ── SLIDE 13: Q&A ── -->
   <div class="slide slide-cover" data-section="">
-    <div class="kicker">Fine</div>
-    <h1 style="font-size:64px;">Q&amp;A</h1>
-    <div class="subtitle" style="margin-top:16px;">Il codice è su GitHub &nbsp;·&nbsp; La demo gira live</div>
-    <div class="divider" style="margin-top:32px;"></div>
-    <div class="tag-row" style="justify-content:center; margin-top:20px;">
-      <span class="tag yellow">👾 Premi il bottone nell'header per la modalità 8-bit</span>
-    </div>
+    <h1 style="font-size:96px; letter-spacing:4px;">Grazie</h1>
+    <div class="divider" style="margin-top:8px; margin-bottom:28px;"></div>
+    <div class="kicker" style="font-size:16px; letter-spacing:4px;">Domande?</div>
+    <div class="power-badge-demo" style="margin-top:24px;">👾 Premi il pulsantino per la modalità 8-bit</div>
   </div>
 
 </div>
@@ -921,6 +1002,7 @@
   const progress = document.getElementById('progress');
   const counter  = document.getElementById('counter');
   const sectionLabel = document.getElementById('section-label');
+  const logoBar = document.getElementById('logo-bar');
   let current = 0;
 
   function showSlide(idx) {
@@ -937,6 +1019,12 @@
     // only reset step-by-step bullets; always-on bullets keep their show class
     slides[current].querySelectorAll('.bullet[data-step]').forEach(b => b.classList.remove('show'));
 
+    // reset vocab intro state
+    const intro = slides[current].querySelector('.vocab-intro');
+    const body  = slides[current].querySelector('.vocab-body');
+    if (intro) intro.classList.remove('dismissed');
+    if (body)  body.classList.remove('revealed');
+
     updateUI();
   }
 
@@ -945,10 +1033,22 @@
     progress.style.width = pct + '%';
     counter.textContent = `${current + 1} / ${slides.length}`;
     sectionLabel.textContent = slides[current].dataset.section || '';
+    logoBar.style.opacity = current === 0 ? '0' : '1';
+    logoBar.style.pointerEvents = current === 0 ? 'none' : 'auto';
   }
 
   function stepBullets() {
     const active = slides[current];
+
+    // se c'è un vocab-intro non ancora dismesso, gestiscilo come primo step
+    const intro = active.querySelector('.vocab-intro:not(.dismissed)');
+    if (intro) {
+      intro.classList.add('dismissed');
+      const body = active.querySelector('.vocab-body');
+      if (body) body.classList.add('revealed');
+      return true;
+    }
+
     const bullets = Array.from(active.querySelectorAll('.bullet[data-step]'))
       .filter(b => !b.classList.contains('show'))
       .sort((a, b) => +a.dataset.step - +b.dataset.step);
