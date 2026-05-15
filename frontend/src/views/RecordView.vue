@@ -1,5 +1,41 @@
 <template>
   <div class="record-view">
+    <div class="record-logo-header">
+      <img src="/kubi_logo.png" alt="KuBi" class="record-logo" />
+    </div>
+
+    <div class="preview-card wake-card">
+      <div class="wake-row">
+        <button
+          type="button"
+          class="wake-toggle"
+          :class="{ active: wakeWordEnabled }"
+          :aria-pressed="wakeWordEnabled"
+          :disabled="!wakeWordSupported"
+          @click="toggleWakeWord"
+        >
+          <span class="toggle-track">
+            <span class="toggle-thumb" />
+          </span>
+          <span class="toggle-label">{{ wakeWordLabel }}</span>
+        </button>
+
+        <transition name="fade">
+          <div v-if="wakeWordEnabled && wakeWordListening" class="wake-indicator">
+            <span class="pulse-dot" />
+            <span>In ascolto</span>
+          </div>
+        </transition>
+      </div>
+
+      <p class="wake-help">
+        <span v-if="!wakeWordSupported">Questo browser non supporta la wake word.</span>
+        <span v-else-if="wakeWordError">{{ wakeWordError }}</span>
+        <span v-else-if="wakeWordEnabled">Pronuncia la wake word per avviare la registrazione.</span>
+        <span v-else>Attiva il toggle per avviare la registrazione con la wake word.</span>
+      </p>
+    </div>
+
     <div class="record-card">
       <div class="timer">{{ formatTime(seconds) }}</div>
 
@@ -12,8 +48,7 @@
         <span v-else><Icon icon="lucide:square" :width="28" :height="28" style="vertical-align: middle" /></span>
       </button>
       <p class="hint">{{ recording ? "Tocca per fermare" : "Tocca per registrare" }}</p>
-
-</div>
+    </div>
 
     <div v-if="blob" class="preview-card">
       <audio :src="audioUrl" controls />
@@ -30,13 +65,15 @@
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import { useApi } from "../composables/useApi.js";
+import { useWakeWord } from "../composables/useWakeWord.js";
 
 const { apiFetch } = useApi();
 
 const emit = defineEmits(["uploaded"]);
+const VOICE_COMMAND_CHUNK_MS = 1600;
 
 const recording = ref(false);
 const blob = ref(null);
@@ -50,8 +87,52 @@ let chunks = [];
 let timer = null;
 let mediaStream = null;
 let messageTimeout = null;
+let commandStream = null;
+let commandLoopActive = false;
+let commandBusy = false;
+let audioCtx = null;
+let promptBuffer = null;
 
+async function unlockAudio() {
+  if (audioCtx) return;
+  audioCtx = new AudioContext();
+  try {
+    const res = await fetch("/sounds/ok_rec.mp3");
+    const arrayBuffer = await res.arrayBuffer();
+    promptBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  } catch {}
+}
+
+async function playPrompt() {
+  if (!audioCtx || !promptBuffer) {
+    console.warn("[prompt] audioCtx or buffer not ready");
+    return;
+  }
+  if (audioCtx.state === "suspended") await audioCtx.resume();
+  console.info("[prompt] playing, ctx state:", audioCtx.state);
+  await new Promise((resolve) => {
+    const source = audioCtx.createBufferSource();
+    source.buffer = promptBuffer;
+    source.connect(audioCtx.destination);
+    source.onended = resolve;
+    source.start();
+  });
+}
+
+const wakeWord = useWakeWord({
+  onTriggered: async () => {
+    if (recording.value || blob.value) return;
+    await playPrompt();
+    await start();
+  },
+});
+const wakeWordEnabled = computed(() => wakeWord.enabled.value);
+const wakeWordSupported = computed(() => wakeWord.supported);
+const wakeWordListening = computed(() => wakeWord.listening.value);
+const wakeWordLabel = computed(() => wakeWord.label.value);
+const wakeWordError = computed(() => wakeWord.error.value);
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+const canListenForWakeWord = computed(() => wakeWordEnabled.value && !recording.value && !blob.value);
 const audioExtension = computed(() => {
   if (!blob.value) return "webm";
   if (blob.value.type.includes("mp4")) return "mp4";
@@ -67,15 +148,55 @@ async function toggle() {
   }
 }
 
+function toggleWakeWord() {
+  if (!wakeWordSupported.value) return;
+  wakeWord.enabled.value = !wakeWord.enabled.value;
+  if (wakeWord.enabled.value) unlockAudio();
+  console.info("[wake] ui toggle click", { enabled: wakeWord.enabled.value });
+}
+
 function getMimeType() {
   const types = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
   return types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+}
+
+function captureChunk(stream, durationMs) {
+  return new Promise((resolve, reject) => {
+    const mimeType = getMimeType();
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    const localChunks = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) localChunks.push(event.data);
+    };
+    recorder.onerror = () => reject(new Error("Registrazione comando fallita"));
+    recorder.onstop = () => resolve(new Blob(localChunks, { type: recorder.mimeType || "audio/webm" }));
+    recorder.start();
+    setTimeout(() => {
+      if (recorder.state !== "inactive") recorder.stop();
+    }, durationMs);
+  });
+}
+
+function getAudioExtension(blobType) {
+  if (blobType.includes("mp4")) return "mp4";
+  if (blobType.includes("ogg")) return "ogg";
+  return "webm";
+}
+
+async function detectVoiceCommand(blob) {
+  const form = new FormData();
+  form.append("audio", blob, `command-${Date.now()}.${getAudioExtension(blob.type)}`);
+  const response = await apiFetch("/api/voice-command", { method: "POST", body: form });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Voice command non disponibile");
+  return data;
 }
 
 async function start() {
   chunks = [];
   resetPreview();
   seconds.value = 0;
+  wakeWord.stopLoop();
 
   mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mimeType = getMimeType();
@@ -86,11 +207,13 @@ async function start() {
     blob.value = new Blob(chunks, { type });
     revokeAudioUrl();
     audioUrl.value = URL.createObjectURL(blob.value);
+    stopVoiceCommandLoop();
     stopMediaStream();
   };
   mediaRecorder.start();
   recording.value = true;
   timer = setInterval(() => seconds.value++, 1000);
+  startVoiceCommandLoop();
 }
 
 function stop() {
@@ -98,6 +221,41 @@ function stop() {
   recording.value = false;
   clearInterval(timer);
   timer = null;
+}
+
+async function startVoiceCommandLoop() {
+  if (!mediaStream || commandLoopActive) return;
+  commandStream = mediaStream.clone();
+  commandLoopActive = true;
+  console.info("[voice-command] loop started");
+
+  while (commandLoopActive && recording.value) {
+    try {
+      const blob = await captureChunk(commandStream, VOICE_COMMAND_CHUNK_MS);
+      if (!commandLoopActive || !recording.value || commandBusy) continue;
+
+      commandBusy = true;
+      const result = await detectVoiceCommand(blob);
+      console.info("[voice-command] result", result);
+      if (result.stopDetected && recording.value) {
+        mostraMessaggio(`Comando vocale rilevato: ${result.matchedCommand}`, "success");
+        stop();
+        break;
+      }
+    } catch (err) {
+      console.info("[voice-command] error", err?.message || err);
+    } finally {
+      commandBusy = false;
+    }
+  }
+
+  stopVoiceCommandLoop();
+}
+
+function stopVoiceCommandLoop() {
+  commandLoopActive = false;
+  commandStream?.getTracks().forEach((track) => track.stop());
+  commandStream = null;
 }
 
 function scarta() {
@@ -146,11 +304,28 @@ function stopMediaStream() {
   mediaStream = null;
 }
 
+watch(canListenForWakeWord, (value) => {
+  if (!wakeWord.enabled.value) return;
+  if (value) wakeWord.startLoop();
+  else wakeWord.stopLoop();
+}, { immediate: true });
+
+watch(() => wakeWord.enabled.value, (value) => {
+  console.info("[wake] record-view enabled changed", { enabled: value });
+}, { immediate: true });
+
+onMounted(() => {
+  wakeWord.refreshAvailability();
+  apiFetch("/api/config").catch(() => {});
+});
+
 onUnmounted(() => {
   clearInterval(timer);
   clearTimeout(messageTimeout);
   revokeAudioUrl();
+  stopVoiceCommandLoop();
   stopMediaStream();
+  wakeWord.stopLoop();
 });
 </script>
 
@@ -160,6 +335,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.record-logo-header {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.record-logo {
+  height: 120px;
+  width: auto;
 }
 
 .record-card {
@@ -239,6 +425,17 @@ onUnmounted(() => {
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
+.wake-card {
+  gap: 10px;
+}
+
+.wake-help {
+  font-size: 13px;
+  color: #6e6e73;
+  line-height: 1.4;
+  text-align: center;
+}
+
 audio { width: 100%; }
 
 .actions {
@@ -287,10 +484,9 @@ audio { width: 100%; }
   gap: 8px;
   cursor: pointer;
   user-select: none;
-}
-
-.wake-toggle input {
-  display: none;
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .toggle-track {
@@ -303,7 +499,7 @@ audio { width: 100%; }
   flex-shrink: 0;
 }
 
-.wake-toggle input:checked + .toggle-track {
+.wake-toggle.active .toggle-track {
   background: #34c759;
 }
 
@@ -319,7 +515,7 @@ audio { width: 100%; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
-.wake-toggle input:checked + .toggle-track .toggle-thumb {
+.wake-toggle.active .toggle-thumb {
   transform: translateX(16px);
 }
 

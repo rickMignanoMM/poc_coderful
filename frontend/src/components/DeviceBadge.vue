@@ -149,7 +149,9 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 220px;
 }
 .device-chip:hover { background: rgba(255,255,255,0.16); }
 .device-chip.device-tuxedo { border-color: rgba(88,86,214,0.5); background: rgba(88,86,214,0.25); }
@@ -167,6 +169,9 @@ onMounted(async () => {
 .device-info { display: flex; flex-direction: column; gap: 1px; }
 .device-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
 .device-subtitle { font-size: 10px; opacity: 0.75; line-height: 1.2; }
+.device-chip .device-info { min-width: 0; overflow: hidden; }
+.device-chip .device-name,
+.device-chip .device-subtitle { overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Modal ── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }

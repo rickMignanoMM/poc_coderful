@@ -1,17 +1,19 @@
 <template>
   <div class="bo">
     <header class="bo-header">
-      <h1><Icon icon="lucide:clipboard-list" :width="20" :height="20" style="vertical-align: middle" /> Backoffice Note Audio</h1>
+      <h1 class="header-brand">
+        <img src="/kubi_logo.png" alt="KuBi" class="header-logo" />
+      </h1>
       <DeviceBadge inline />
       <div class="header-right">
         <input v-model="search" class="search" placeholder="Cerca nelle trascrizioni..." />
         <button class="btn-io" @click="exportNotes" title="Esporta note">
-          <Icon icon="lucide:download" :width="16" :height="16" style="vertical-align: middle" /> {{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}
+          <Icon icon="lucide:download" :width="16" :height="16" style="vertical-align: middle" /> <span class="btn-text">{{ selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export' }}</span>
         </button>
-        <button class="btn-io" @click="$refs.importInput.click()" title="Importa note"><Icon icon="lucide:upload" :width="16" :height="16" style="vertical-align: middle" /> Import</button>
+        <button class="btn-io" @click="$refs.importInput.click()" title="Importa note"><Icon icon="lucide:upload" :width="16" :height="16" style="vertical-align: middle" /> <span class="btn-text">Import</span></button>
         <input ref="importInput" type="file" accept=".json" style="display:none" @change="importNotes" />
         <button class="btn-io btn-audio-import" :disabled="audioUploading" @click="$refs.audioInput.click()" title="Importa file audio">
-          <Icon :icon="audioUploading ? 'lucide:loader' : 'lucide:mic'" :width="16" :height="16" style="vertical-align: middle" /> {{ audioUploading ? audioUploadProgress : 'Import Audio' }}
+          <Icon :icon="audioUploading ? 'lucide:loader' : 'lucide:mic'" :width="16" :height="16" style="vertical-align: middle" /> <span class="btn-text">{{ audioUploading ? audioUploadProgress : 'Import Audio' }}</span>
         </button>
         <input ref="audioInput" type="file" accept="audio/*,video/mp4,video/webm,video/quicktime" multiple style="display:none" @change="importAudio" />
         <button class="btn-pulisci" :disabled="cleanupLoading || analysisLoading" @click="startCleanup">
@@ -1011,9 +1013,11 @@ onMounted(async () => {
 
 .bo-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: #0E294B; border-bottom: 1px solid rgba(255,255,255,0.08); gap: 12px; }
 .bo-header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; color: #fff; }
-.header-right { display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end; }
+.header-brand { display: flex; align-items: center; gap: 8px; }
+.header-logo { height: 44px; width: auto; flex-shrink: 0; }
+.header-right { display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end; min-width: 0; flex-wrap: nowrap; }
 
-.search { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; font-size: 14px; width: 240px; outline: none; background: rgba(255,255,255,0.1); color: #fff; }
+.search { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; font-size: 14px; width: 200px; min-width: 120px; outline: none; background: rgba(255,255,255,0.1); color: #fff; flex-shrink: 1; }
 .search::placeholder { color: rgba(255,255,255,0.4); }
 .search:focus { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); }
 
@@ -1265,6 +1269,10 @@ tr:hover .btn-edit { opacity: 1; }
 .card-audio { padding: 10px 14px 6px; }
 .card-audio audio { width: 100%; height: 36px; }
 .card-text { padding: 10px 14px; font-size: 14px; line-height: 1.5; }
+
+@media (max-width: 1200px) {
+  .btn-io .btn-text { display: none; }
+}
 
 @media (max-width: 768px) {
   .bo-header { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
